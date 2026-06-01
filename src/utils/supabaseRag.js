@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-const OLLAMA_URL = 'http://localhost:11434'
+const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const EMBED_MODEL = 'nomic-embed-text'
 
 // Supabase client — null si les clés ne sont pas configurées

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const OLLAMA_URL = 'http://localhost:11434'
+const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const MODEL = 'gemma4:e2b'
 
 // Normalise bonneReponse : seules "ia" et "humain" sont valides
