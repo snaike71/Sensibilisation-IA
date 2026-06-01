@@ -1,6 +1,31 @@
 import { useState } from 'react'
 import { useOllama } from '../hooks/useOllama.js'
 import { useApp } from '../context/AppContext.jsx'
+import { extractPdfText } from '../utils/pdfExtract.js'
+import { isSupabaseConfigured, indexDocument, retrieveContext } from '../utils/supabaseRag.js'
+
+function PdfPreviewBlock({ text }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mt-2 rounded-xl border border-white/10 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-white/5 hover:bg-white/8 transition-colors text-left"
+      >
+        <span className="text-xs font-mono text-white/40">
+          ✓ {text.length.toLocaleString()} caractères extraits — le document alimentera la génération
+        </span>
+        <span className="text-white/30 text-xs ml-3 shrink-0">{open ? '▲ Masquer' : '▼ Voir le texte lu par l\'IA'}</span>
+      </button>
+      {open && (
+        <div className="px-3 py-3 bg-black/30 max-h-48 overflow-y-auto">
+          <p className="text-white/50 text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">{text}</p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const ADMIN_PASSWORD = 'lhc2026'
 
@@ -71,6 +96,14 @@ export default function AdminScreen({ onBack }) {
     count: 3,
     questionsPerScenario: 3,
   })
+  const [pdfFile, setPdfFile] = useState(null)
+  const [pdfExtracting, setPdfExtracting] = useState(false)
+  const [pdfPreview, setPdfPreview] = useState('')
+  const [ragProgress, setRagProgress] = useState(null) // { current, total } pendant indexation
+  const [ragIndexed, setRagIndexed] = useState(false)
+  const [ragError, setRagError] = useState(null)
+  const [ragChunksUsed, setRagChunksUsed] = useState(null)
+  const useRag = isSupabaseConfigured()
   const [selectedIds, setSelectedIds] = useState(null) // null = tout sélectionné
 
   function handleLogin(e) {
@@ -83,9 +116,59 @@ export default function AdminScreen({ onBack }) {
     }
   }
 
+  async function handlePdfChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPdfFile(file)
+    setPdfExtracting(true)
+    setRagIndexed(false)
+    setRagProgress(null)
+    setRagError(null)
+    try {
+      const text = await extractPdfText(file)
+      setPdfPreview(text)
+      // Extraction seulement — vectorisation différée au clic sur Générer
+    } catch (err) {
+      setPdfPreview('')
+      setRagError('Erreur lecture PDF : ' + err.message)
+    } finally {
+      setPdfExtracting(false)
+    }
+  }
+
   async function handleGenerate(e) {
     e.preventDefault()
-    const situations = await generateSituations(form, form.count, form.questionsPerScenario)
+    if (form.count * form.questionsPerScenario > 9) return
+    let documentContext = pdfPreview ? pdfPreview.slice(0, 6000) : undefined
+
+    // Si Supabase RAG est actif et qu'un PDF est chargé, vectoriser maintenant puis récupérer
+    if (useRag && pdfPreview && pdfFile) {
+      try {
+        setRagProgress({ current: 0, total: 1 })
+        await indexDocument(pdfPreview, pdfFile.name, (current, total) => {
+          setRagProgress({ current, total })
+        })
+        setRagIndexed(true)
+        setRagProgress(null)
+        const query = `${form.companyName} ${form.sector} ${form.context} sensibilisation IA bonnes pratiques`
+        const ragContext = await retrieveContext(query)
+        if (ragContext) {
+          documentContext = ragContext
+          const nb = ragContext.split('\n\n').length
+          setRagChunksUsed(nb)
+          console.log(`[RAG] ${nb} chunks injectés dans le prompt :`, ragContext.slice(0, 300) + '...')
+        } else {
+          console.warn('[RAG] Aucun chunk pertinent trouvé — utilisation du texte brut')
+        }
+      } catch (ragErr) {
+        setRagError(ragErr.message)
+        setRagProgress(null)
+        return
+      }
+    }
+
+    const configWithDoc = { ...form, documentContext }
+    const situations = await generateSituations(configWithDoc, form.count, form.questionsPerScenario)
     if (situations) {
       setPreview(situations)
       setSelectedIds(situations.map((s) => s.id))
@@ -295,6 +378,82 @@ export default function AdminScreen({ onBack }) {
               />
             </div>
 
+            {/* Statut Supabase RAG */}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono ${useRag ? 'bg-violet-900/20 border-violet-500/20 text-violet-300' : 'bg-white/5 border-white/10 text-white/25'}`}>
+              <span>{useRag ? '🟣' : '⚫'}</span>
+              <span>{useRag ? 'Supabase RAG connecté — vectorisation active' : 'Supabase non configuré — mode texte brut'}</span>
+            </div>
+
+            {/* Upload PDF de contexte */}
+            <div>
+              <label className="text-xs text-indigo-300 font-mono uppercase tracking-widest mb-2 block">
+                Document de contexte PDF (optionnel)
+              </label>
+              <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                pdfFile
+                  ? 'bg-indigo-900/40 border-indigo-500/50 text-indigo-300'
+                  : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:border-white/20'
+              }`}>
+                <span className="text-xl">{pdfFile ? '📄' : '📎'}</span>
+                <span className="text-sm flex-1 truncate">
+                  {ragProgress
+                    ? `Vectorisation ${ragProgress.current}/${ragProgress.total} chunks…`
+                    : pdfExtracting
+                    ? 'Lecture du PDF…'
+                    : pdfFile
+                    ? pdfFile.name
+                    : 'Charger un PDF (charte, procédures, guide…)'}
+                </span>
+                {pdfFile && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setPdfFile(null); setPdfPreview('') }}
+                    className="ml-auto text-white/30 hover:text-white/70 text-xs transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
+                <input
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handlePdfChange}
+                />
+              </label>
+              {ragProgress && (
+                <div className="mt-2 px-3 py-2 rounded-xl bg-violet-900/30 border border-violet-500/20">
+                  <div className="flex justify-between text-xs font-mono text-violet-300 mb-1">
+                    <span>Vectorisation en cours…</span>
+                    <span>{ragProgress.current}/{ragProgress.total}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full transition-all duration-300"
+                      style={{ width: `${(ragProgress.current / ragProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {pdfPreview && !ragProgress && !ragIndexed && useRag && (
+                <p className="mt-1.5 text-white/30 text-xs font-mono">
+                  ⏳ La vectorisation se lancera automatiquement au clic sur Générer
+                </p>
+              )}
+              {ragIndexed && !ragProgress && (
+                <p className="mt-1.5 text-violet-300/70 text-xs font-mono">
+                  ✨ Document vectorisé — recherche sémantique active
+                  {ragChunksUsed ? ` · ${ragChunksUsed} passages injectés dans le prompt` : ''}
+                </p>
+              )}
+              {ragError && (
+                <div className="mt-2 px-3 py-2 rounded-xl bg-red-900/30 border border-red-500/20 text-red-300 text-xs font-mono">
+                  ❌ Erreur : {ragError}
+                </div>
+              )}
+              {!useRag && pdfPreview && <PdfPreviewBlock text={pdfPreview} />}
+              {useRag && ragIndexed && <PdfPreviewBlock text={pdfPreview} />}
+            </div>
+
             {/* Nombre de thèmes */}
             <div>
               <label className="text-xs text-indigo-300 font-mono uppercase tracking-widest mb-2 block">
@@ -323,12 +482,14 @@ export default function AdminScreen({ onBack }) {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-white/25 mt-2">
-                Total : <span className={`${form.count * form.questionsPerScenario > 9 ? 'text-amber-400' : 'text-white/50'}`}>
-                  {form.count} × {form.questionsPerScenario} = {form.count * form.questionsPerScenario} questions
-                  {form.count * form.questionsPerScenario > 9 ? ' — génération plus longue' : ''}
-                </span>
-              </p>
+              {form.count && form.questionsPerScenario && (
+                <p className="text-xs mt-2">
+                  Total : <span className={`${form.count * form.questionsPerScenario > 9 ? 'text-red-400' : 'text-white/50'}`}>
+                    {form.count} × {form.questionsPerScenario} = {form.count * form.questionsPerScenario} questions
+                    {form.count * form.questionsPerScenario > 9 ? ' — ⚠️ dépasse la limite du modèle (max 9)' : ''}
+                  </span>
+                </p>
+              )}
             </div>
 
             {error && (
@@ -424,11 +585,21 @@ export default function AdminScreen({ onBack }) {
                           <span className="text-white/20 font-mono text-xs mt-1 shrink-0">Q{qi + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-gray-300 text-xs leading-relaxed mb-1">{q.texte}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded font-mono ${
-                              q.bonneReponse === 'ia' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
-                            }`}>
-                              {q.bonneReponse === 'ia' ? '✅ Déléguer à l\'IA' : '🧠 Garder en manuel'}
-                            </span>
+                            {q.type === 'drag' && (
+                              <span className={`text-xs px-2 py-0.5 rounded font-mono ${q.bonneReponse === 'ia' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                                {q.bonneReponse === 'ia' ? '✅ Déléguer à l\'IA' : '🧠 Garder en manuel'}
+                              </span>
+                            )}
+                            {q.type === 'mcq' && (
+                              <span className="text-xs px-2 py-0.5 rounded font-mono bg-blue-500/15 text-blue-300">
+                                🔵 QCM — réponse : {q.bonneReponse}
+                              </span>
+                            )}
+                            {q.type === 'free' && (
+                              <span className="text-xs px-2 py-0.5 rounded font-mono bg-violet-500/15 text-violet-300">
+                                ✏️ Réponse libre (analysée par IA)
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}

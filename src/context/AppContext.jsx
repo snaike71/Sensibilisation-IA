@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { apiUrl } from '../utils/api.js'
 
 function normalizeReponse(val, categorie) {
   if (val === 'ia') return 'ia'
@@ -33,35 +34,52 @@ export function AppProvider({ children }) {
   const [companyConfig, setCompanyConfig] = useState(null)
   const [customSituations, setCustomSituations] = useState(null)
 
-  // Charger la config depuis l'API au démarrage
-  useEffect(() => {
-    fetch('/api/config')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data) {
-          setCompanyConfig({
-            companyName: data.company_name,
-            sector: data.sector,
-            size: data.size,
-            tools: data.tools,
-            context: data.context,
-          })
-          if (data.situations) setCustomSituations(normalizeSituations(data.situations))
-        }
+  // Charge la config de l'org après connexion (token requis)
+  async function loadConfig(jwt) {
+    const t = jwt ?? token
+    if (!t) return
+    try {
+      const r = await fetch(apiUrl('/api/config'), {
+        headers: { Authorization: `Bearer ${t}` },
       })
-      .catch(() => {})
-  }, [])
+      if (!r.ok) return
+      const data = await r.json()
+      if (data) {
+        setCompanyConfig({
+          companyName: data.company_name,
+          sector: data.sector,
+          size: data.size,
+          tools: data.tools,
+          context: data.context,
+        })
+        if (data.situations) setCustomSituations(normalizeSituations(data.situations))
+      }
+    } catch { /* silencieux */ }
+  }
 
-  function login(userData, jwtToken) {
+  // Recharge la config au démarrage si un token est déjà présent
+  useEffect(() => { loadConfig() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  function login(orgData, jwtToken) {
+    // orgData peut venir du nouveau backend ({id, nom, secteur}) ou d'un ancien token
+    const userData = {
+      id: orgData.id,
+      name: orgData.nom ?? orgData.name,
+      email: orgData.email_admin ?? orgData.email,
+      role: 'admin',
+    }
     setUser(userData)
     setToken(jwtToken)
     localStorage.setItem('lhc_user', JSON.stringify(userData))
     localStorage.setItem('lhc_token', jwtToken)
+    loadConfig(jwtToken)
   }
 
   function logout() {
     setUser(null)
     setToken(null)
+    setCompanyConfig(null)
+    setCustomSituations(null)
     localStorage.removeItem('lhc_user')
     localStorage.removeItem('lhc_token')
   }
@@ -69,7 +87,7 @@ export function AppProvider({ children }) {
   async function saveConfig(config, situations) {
     setCompanyConfig(config)
     setCustomSituations(situations)
-    await fetch('/api/config', {
+    await fetch(apiUrl('/api/config'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -85,7 +103,7 @@ export function AppProvider({ children }) {
 
   async function saveResult(score, profil, reponses) {
     if (!token) return
-    await fetch('/api/results', {
+    await fetch(apiUrl('/api/results'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ score, profil, reponses }),

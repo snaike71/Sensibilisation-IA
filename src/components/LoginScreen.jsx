@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
+import { apiUrl } from '../utils/api.js'
 
 export default function LoginScreen({ onSuccess }) {
   const { login } = useApp()
@@ -13,10 +14,10 @@ export default function LoginScreen({ onSuccess }) {
     setError(null)
     setLoading(true)
     try {
-      const url = mode === 'login' ? '/api/auth/login' : '/api/auth/register'
+      const url = apiUrl(mode === 'login' ? '/api/auth/login' : '/api/auth/register')
       const body = mode === 'login'
         ? { email: form.email, password: form.password }
-        : { email: form.email, name: form.name, password: form.password }
+        : { nom: form.name, email: form.email, password: form.password }
 
       const res = await fetch(url, {
         method: 'POST',
@@ -25,7 +26,8 @@ export default function LoginScreen({ onSuccess }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur')
-      login(data.user, data.token)
+      // Le nouveau backend renvoie { org, token }, l'ancien renvoyait { user, token }
+      login(data.org ?? data.user, data.token)
       onSuccess()
     } catch (e) {
       setError(e.message)

@@ -106,6 +106,13 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 -- RLS
+-- Le rôle 'anon' est natif de Supabase ; on le crée s'il n'existe pas (Postgres local Docker)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+END $$;
+
 ALTER TABLE organisations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usecases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;

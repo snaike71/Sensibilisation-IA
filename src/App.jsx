@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from './context/AppContext.jsx'
+
 import LoginScreen from './components/LoginScreen.jsx'
 import AccrocheScreen from './components/AccrocheScreen.jsx'
 import Quiz from './components/Quiz.jsx'
@@ -9,8 +10,9 @@ import AdminScreen from './components/AdminScreen.jsx'
 // phases : 'login' | 'accroche' | 'diagnostic' | 'quiz' | 'score' | 'admin'
 
 export default function App() {
-  const { user } = useApp()
+  const { user, logout } = useApp()
   const [phase, setPhase] = useState(user ? 'accroche' : 'login')
+
   const [score, setScore] = useState(0)
   const [total, setTotal] = useState(0)
 
@@ -35,7 +37,8 @@ export default function App() {
   }
 
   if (phase === 'accroche') {
-    return <AccrocheScreen onStart={() => setPhase('quiz')} onAdmin={() => setPhase('admin')} />
+    function handleLogout() { logout(); setPhase('login') }
+    return <AccrocheScreen onStart={() => setPhase('quiz')} onAdmin={() => setPhase('admin')} onLogout={handleLogout} />
   }
 
   if (phase === 'quiz') {

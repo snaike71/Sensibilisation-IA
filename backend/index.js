@@ -204,6 +204,65 @@ app.get('/api/sessions', auth, async (req, res) => {
   res.json(rows)
 })
 
+// ─── Config quiz (couche de compatibilité) ────────────────────────────────────
+
+// GET /api/config — charge la config de l'organisation depuis modules
+app.get('/api/config', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT contenu FROM modules WHERE org_id = $1 AND code = 'QUIZ_CONFIG' LIMIT 1",
+      [req.org.id]
+    )
+    if (!rows.length || !rows[0].contenu) return res.json(null)
+    res.json(JSON.parse(rows[0].contenu))
+  } catch {
+    res.json(null)
+  }
+})
+
+// PUT /api/config — sauvegarde/met à jour la config quiz dans modules
+app.put('/api/config', auth, async (req, res) => {
+  try {
+    const config = req.body
+    const { rows } = await pool.query(
+      "SELECT id FROM modules WHERE org_id = $1 AND code = 'QUIZ_CONFIG'",
+      [req.org.id]
+    )
+    if (rows.length) {
+      await pool.query(
+        "UPDATE modules SET contenu = $1 WHERE org_id = $2 AND code = 'QUIZ_CONFIG'",
+        [JSON.stringify(config), req.org.id]
+      )
+    } else {
+      await pool.query(
+        `INSERT INTO modules (org_id, titre, code, contenu, personnalise)
+         VALUES ($1, 'Quiz Config', 'QUIZ_CONFIG', $2, true)`,
+        [req.org.id, JSON.stringify(config)]
+      )
+    }
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// POST /api/results — compatibilité ancienne route → sessions
+app.post('/api/results', auth, async (req, res) => {
+  const { score, profil, reponses } = req.body
+  const total = Array.isArray(reponses) ? reponses.length : 0
+  const xp = Math.round((score / Math.max(total, 1)) * 100)
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO sessions (org_id, score, total_questions, xp_gagne, concepts_maitrises)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.org.id, score, total, xp, profil ?? '']
+    )
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── Documents (RAG) ──────────────────────────────────────────────────────────
 
 // POST /api/documents — stocker un chunk avec son embedding (appelé par Dev 1)

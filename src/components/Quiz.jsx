@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { situations as defaultSituations } from '../situations.js'
 import { useApp } from '../context/AppContext.jsx'
+import { useOllama } from '../hooks/useOllama.js'
 import SituationCard from './SituationCard.jsx'
 import DropZone from './DropZone.jsx'
 
@@ -34,11 +35,11 @@ function normalizeScenarios(raw) {
 }
 
 // ── Feedback Modal inline ────────────────────────────────────
-function FeedbackOverlay({ question, isCorrect, selfScore, onClose }) {
+function FeedbackOverlay({ question, isCorrect, aiAnalysis, analyzing, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-4">
       <div className={`border rounded-2xl shadow-2xl max-w-md w-full p-6 flex flex-col gap-4 ${
-        isCorrect === null
+        question.type === 'free'
           ? 'bg-slate-900 border-white/10'
           : isCorrect
           ? 'bg-emerald-950 border-emerald-500/30'
@@ -46,10 +47,24 @@ function FeedbackOverlay({ question, isCorrect, selfScore, onClose }) {
       }`}>
         {question.type === 'free' ? (
           <>
-            <p className="text-white/50 text-xs font-mono uppercase tracking-widest">Réponse de référence</p>
-            <p className="text-brand-offwhite text-sm leading-relaxed">{question.modelAnswer}</p>
-            {question.explication && (
-              <p className="text-white/50 text-xs leading-relaxed border-t border-white/10 pt-3">{question.explication}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-brand-cyan text-xs font-mono uppercase tracking-widest">✨ Analyse IA</span>
+            </div>
+            {analyzing ? (
+              <div className="flex items-center gap-3 py-2">
+                <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-brand-cyan rounded-full animate-spin shrink-0" />
+                <p className="text-white/50 text-sm">Analyse de ta réponse en cours…</p>
+              </div>
+            ) : aiAnalysis ? (
+              <p className="text-brand-offwhite text-sm leading-relaxed">{aiAnalysis}</p>
+            ) : (
+              <>
+                <p className="text-white/50 text-xs font-mono uppercase tracking-widest">Réponse de référence</p>
+                <p className="text-brand-offwhite text-sm leading-relaxed">{question.modelAnswer}</p>
+              </>
+            )}
+            {question.explication && !analyzing && (
+              <p className="text-white/40 text-xs leading-relaxed border-t border-white/10 pt-3 italic">{question.explication}</p>
             )}
           </>
         ) : (
@@ -77,9 +92,12 @@ function FeedbackOverlay({ question, isCorrect, selfScore, onClose }) {
         )}
         <button
           onClick={onClose}
-          className="mt-1 px-6 py-2.5 rounded-xl bg-brand-blue hover:bg-brand-blue/80 text-white font-medium active:scale-95 transition-all"
+          disabled={analyzing}
+          className={`mt-1 px-6 py-2.5 rounded-xl font-medium active:scale-95 transition-all ${
+            analyzing ? 'bg-white/10 text-white/30 cursor-not-allowed' : 'bg-brand-blue hover:bg-brand-blue/80 text-white'
+          }`}
         >
-          Continuer →
+          {analyzing ? 'Analyse en cours…' : 'Continuer →'}
         </button>
       </div>
     </div>
@@ -88,6 +106,7 @@ function FeedbackOverlay({ question, isCorrect, selfScore, onClose }) {
 
 export default function Quiz({ onFinish }) {
   const { customSituations } = useApp()
+  const { analyzeAnswer, analyzing } = useOllama()
   const scenarios = normalizeScenarios(customSituations ?? defaultSituations)
 
   const [scenarioIdx, setScenarioIdx] = useState(0)
@@ -95,6 +114,7 @@ export default function Quiz({ onFinish }) {
   const [phase, setPhase] = useState('intro')
   const [answers, setAnswers] = useState({})
   const [feedback, setFeedback] = useState(null)
+  const [aiAnalysis, setAiAnalysis] = useState(null)
   const [activeId, setActiveId] = useState(null)
 
   // MCQ state
@@ -110,15 +130,27 @@ export default function Quiz({ onFinish }) {
   const currentQuestion = currentScenario?.questions[questionIdx]
   const questionNumber = scenarios.slice(0, scenarioIdx).reduce((sum, s) => sum + s.questions.length, 0) + questionIdx + 1
 
-  function submitAnswer(isCorrect) {
+  async function submitAnswer(isCorrect, userText = null) {
     const newAnswers = { ...answers, [currentQuestion.id]: { correct: isCorrect } }
     setAnswers(newAnswers)
     setFeedback({ question: currentQuestion, isCorrect })
+    setAiAnalysis(null)
     setPhase('feedback')
+
+    // Pour les questions libres, lancer l'analyse IA en arrière-plan
+    if (currentQuestion.type === 'free' && userText) {
+      const analysis = await analyzeAnswer(
+        currentQuestion.texte,
+        currentQuestion.modelAnswer ?? '',
+        userText
+      )
+      setAiAnalysis(analysis)
+    }
   }
 
   function handleFeedbackClose() {
     setFeedback(null)
+    setAiAnalysis(null)
     setMcqSelected(null)
     setFreeText('')
     const isLastQ = questionIdx >= currentScenario.questions.length - 1
@@ -322,7 +354,7 @@ export default function Quiz({ onFinish }) {
               Votre réponse n'est pas notée — une réponse de référence s'affichera.
             </p>
             <button
-              onClick={() => submitAnswer(null)}
+              onClick={() => submitAnswer(null, freeText)}
               disabled={freeText.trim().length < 3}
               className={`w-full px-6 py-3.5 rounded-xl font-bold transition-all active:scale-95 ${
                 freeText.trim().length >= 3 ? 'bg-brand-blue hover:bg-brand-blue/80 text-white' : 'bg-white/5 text-white/25 cursor-not-allowed'
@@ -338,6 +370,8 @@ export default function Quiz({ onFinish }) {
         <FeedbackOverlay
           question={feedback.question}
           isCorrect={feedback.isCorrect}
+          aiAnalysis={aiAnalysis}
+          analyzing={analyzing}
           onClose={handleFeedbackClose}
         />
       )}
