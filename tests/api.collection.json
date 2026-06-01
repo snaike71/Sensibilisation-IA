@@ -1,0 +1,407 @@
+{
+  "info": {
+    "name": "lhctrl. API",
+    "description": "Tests des routes API backend — lhctrl. Sensibilisation IA",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register — créer une organisation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne org + token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('org');",
+                  "  pm.expect(json).to.have.property('token');",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Acme Corp\",\n  \"email\": \"admin@acme.fr\",\n  \"password\": \"acme1234\",\n  \"secteur\": \"Tech\",\n  \"taille\": \"PME\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register — email déjà utilisé (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Message erreur email', () => {",
+                  "  pm.expect(pm.response.json().error).to.include('déjà utilisé');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Acme Corp\",\n  \"email\": \"admin@acme.fr\",\n  \"password\": \"acme1234\",\n  \"secteur\": \"Tech\",\n  \"taille\": \"PME\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — succès",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne token', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('token');",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@acme.fr\",\n  \"password\": \"acme1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — mauvais mot de passe (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@acme.fr\",\n  \"password\": \"mauvaismdp\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Route protégée sans token (doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/teams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cas d'usage",
+      "item": [
+        {
+          "name": "Créer un cas d'usage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne le cas d\\'usage créé', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json.intitule).to.eql('Rédaction de tickets avec ChatGPT');",
+                  "  pm.collectionVariables.set('usecase_id', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/usecases",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intitule\": \"Rédaction de tickets avec ChatGPT\",\n  \"equipe\": \"Produit\",\n  \"outil_ia\": \"ChatGPT\",\n  \"frequence\": \"Quotidienne\",\n  \"risques\": [\"RGPD / données perso\", \"Souveraineté (Patriot Act)\"],\n  \"niveau_risque\": \"Élevé\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lister les cas d'usage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne un tableau', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/usecases",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Équipes",
+      "item": [
+        {
+          "name": "Créer une équipe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne équipe avec code d\\'accès', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('code_acces');",
+                  "  pm.expect(json.code_acces).to.match(/^[A-Z]+-[A-Z0-9]{4}$/);",
+                  "  pm.collectionVariables.set('team_code', json.code_acces);",
+                  "  pm.collectionVariables.set('team_id', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/teams",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Équipe Produit\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lister les équipes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne un tableau', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/teams",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Modules",
+      "item": [
+        {
+          "name": "Créer un module",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne le module créé', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('code');",
+                  "  pm.collectionVariables.set('module_id', json.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/modules",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titre\": \"RGPD et IA générative\",\n  \"description\": \"Comprendre les risques RGPD liés à l'usage de ChatGPT\",\n  \"niveau\": \"intermediate\",\n  \"duree_min\": 15,\n  \"equipes_ciblees\": \"Produit\",\n  \"personnalise\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Lister les modules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne un tableau', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/modules",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Collaborateurs",
+      "item": [
+        {
+          "name": "Rejoindre une équipe (code valide)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne collaborateur + équipe', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('collaborator');",
+                  "  pm.expect(json).to.have.property('team');",
+                  "  pm.collectionVariables.set('collaborator_id', json.collaborator.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/join",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{team_code}}\",\n  \"nom\": \"Alice Dupont\",\n  \"email\": \"alice@acme.fr\",\n  \"role\": \"Développeuse\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Rejoindre une équipe (code invalide — doit échouer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/join",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"XXXX-0000\",\n  \"nom\": \"Bob Martin\",\n  \"email\": \"bob@acme.fr\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Sauvegarder un résultat de quiz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne la session créée', () => {",
+                  "  pm.expect(pm.response.json()).to.have.property('id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/sessions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"collaborator_id\": \"{{collaborator_id}}\",\n  \"module_id\": \"{{module_id}}\",\n  \"org_id\": \"{{org_id}}\",\n  \"score\": 4,\n  \"total_questions\": 5,\n  \"xp_gagne\": 80,\n  \"duree_min\": 12,\n  \"concepts_maitrises\": \"RGPD, Souveraineté\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lister les sessions (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Retourne un tableau', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/sessions",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        }
+      ]
+    }
+  ]
+}

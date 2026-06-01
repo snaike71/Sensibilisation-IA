@@ -1,4 +1,3 @@
-import 'dotenv/config'
 import express from 'express'
 import pg from 'pg'
 import bcrypt from 'bcrypt'
@@ -8,7 +7,16 @@ import cors from 'cors'
 const app = express()
 const { Pool } = pg
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5000,
+  query_timeout: 10000,
+  ssl: { rejectUnauthorized: false },
+})
+
+pool.on('error', (err) => console.error('Pool error:', err.message))
+process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err))
 const JWT_SECRET = process.env.JWT_SECRET || 'lhc-secret-2026'
 
 app.use(cors())

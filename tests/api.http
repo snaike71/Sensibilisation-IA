@@ -1,0 +1,192 @@
+# lhctrl. — Tests API
+# Extension requise : REST Client (humao.rest-client)
+# Lancer les requêtes dans l'ordre pour que les variables se propagent
+
+@base_url = http://localhost:3001
+@content_type = application/json
+
+# ─────────────────────────────────────────────────────────────
+# AUTH
+# ─────────────────────────────────────────────────────────────
+
+### [AUTH-01] Register — créer une organisation
+# @name register
+POST {{base_url}}/api/auth/register
+Content-Type: {{content_type}}
+
+{
+  "nom": "Acme Corp",
+  "email": "admin@acme.fr",
+  "password": "acme1234",
+  "secteur": "Tech",
+  "taille": "PME"
+}
+
+###
+
+@token = {{login.response.body.token}}
+@org_id = {{login.response.body.org.id}}
+
+### [AUTH-02] Register — email déjà utilisé (doit retourner 400)
+POST {{base_url}}/api/auth/register
+Content-Type: {{content_type}}
+
+{
+  "nom": "Acme Corp",
+  "email": "admin@acme.fr",
+  "password": "acme1234",
+  "secteur": "Tech",
+  "taille": "PME"
+}
+
+### [AUTH-03] Login — succès
+# @name login
+POST {{base_url}}/api/auth/login
+Content-Type: {{content_type}}
+
+{
+  "email": "admin@acme.fr",
+  "password": "acme1234"
+}
+
+### [AUTH-04] Login — mauvais mot de passe (doit retourner 401)
+POST {{base_url}}/api/auth/login
+Content-Type: {{content_type}}
+
+{
+  "email": "admin@acme.fr",
+  "password": "mauvaismdp"
+}
+
+### [AUTH-05] Route protégée sans token (doit retourner 401)
+GET {{base_url}}/api/teams
+
+# ─────────────────────────────────────────────────────────────
+# CAS D'USAGE
+# ─────────────────────────────────────────────────────────────
+
+### [UC-01] Créer un cas d'usage
+# @name createUsecase
+POST {{base_url}}/api/usecases
+Content-Type: {{content_type}}
+Authorization: Bearer {{token}}
+
+{
+  "intitule": "Rédaction de tickets avec ChatGPT",
+  "equipe": "Produit",
+  "outil_ia": "ChatGPT",
+  "frequence": "Quotidienne",
+  "risques": ["RGPD / données perso", "Souveraineté (Patriot Act)"],
+  "niveau_risque": "Élevé"
+}
+
+###
+
+@usecase_id = {{createUsecase.response.body.id}}
+
+### [UC-02] Lister les cas d'usage
+GET {{base_url}}/api/usecases
+Authorization: Bearer {{token}}
+
+# ─────────────────────────────────────────────────────────────
+# ÉQUIPES
+# ─────────────────────────────────────────────────────────────
+
+### [TEAM-01] Créer une équipe
+# @name createTeam
+POST {{base_url}}/api/teams
+Content-Type: {{content_type}}
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Équipe Produit"
+}
+
+###
+
+@team_code = {{createTeam.response.body.code_acces}}
+@team_id = {{createTeam.response.body.id}}
+
+### [TEAM-02] Lister les équipes
+GET {{base_url}}/api/teams
+Authorization: Bearer {{token}}
+
+# ─────────────────────────────────────────────────────────────
+# MODULES
+# ─────────────────────────────────────────────────────────────
+
+### [MOD-01] Créer un module
+# @name createModule
+POST {{base_url}}/api/modules
+Content-Type: {{content_type}}
+Authorization: Bearer {{token}}
+
+{
+  "titre": "RGPD et IA générative",
+  "description": "Comprendre les risques RGPD liés à l'usage de ChatGPT",
+  "niveau": "intermediate",
+  "duree_min": 15,
+  "equipes_ciblees": "Produit",
+  "personnalise": true
+}
+
+###
+
+@module_id = {{createModule.response.body.id}}
+
+### [MOD-02] Lister les modules
+GET {{base_url}}/api/modules
+Authorization: Bearer {{token}}
+
+# ─────────────────────────────────────────────────────────────
+# COLLABORATEURS
+# ─────────────────────────────────────────────────────────────
+
+### [COLLAB-01] Rejoindre une équipe — code valide
+# @name join
+POST {{base_url}}/api/join
+Content-Type: {{content_type}}
+
+{
+  "code": "{{team_code}}",
+  "nom": "Alice Dupont",
+  "email": "alice@acme.fr",
+  "role": "Développeuse"
+}
+
+###
+
+@collaborator_id = {{join.response.body.collaborator.id}}
+
+### [COLLAB-02] Rejoindre une équipe — code invalide (doit retourner 404)
+POST {{base_url}}/api/join
+Content-Type: {{content_type}}
+
+{
+  "code": "XXXX-0000",
+  "nom": "Bob Martin",
+  "email": "bob@acme.fr"
+}
+
+# ─────────────────────────────────────────────────────────────
+# SESSIONS
+# ─────────────────────────────────────────────────────────────
+
+### [SES-01] Sauvegarder un résultat de quiz
+POST {{base_url}}/api/sessions
+Content-Type: {{content_type}}
+
+{
+  "collaborator_id": "{{collaborator_id}}",
+  "module_id": "{{module_id}}",
+  "org_id": "{{org_id}}",
+  "score": 4,
+  "total_questions": 5,
+  "xp_gagne": 80,
+  "duree_min": 12,
+  "concepts_maitrises": "RGPD, Souveraineté"
+}
+
+### [SES-02] Lister les sessions (admin)
+GET {{base_url}}/api/sessions
+Authorization: Bearer {{token}}
