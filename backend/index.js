@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import pg from 'pg'
 import bcrypt from 'bcrypt'
@@ -13,32 +14,36 @@ const JWT_SECRET = process.env.JWT_SECRET || 'lhc-secret-2026'
 app.use(cors())
 app.use(express.json())
 
-function authMiddleware(req, res, next) {
+function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1]
   if (!token) return res.status(401).json({ error: 'Token manquant' })
   try {
-    req.user = jwt.verify(token, JWT_SECRET)
+    req.org = jwt.verify(token, JWT_SECRET)
     next()
   } catch {
     res.status(401).json({ error: 'Token invalide' })
   }
 }
 
-// POST /api/auth/register
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+// POST /api/auth/register — onboarding admin (crée une organisation)
 app.post('/api/auth/register', async (req, res) => {
-  const { email, name, password } = req.body
-  if (!email || !name || !password) return res.status(400).json({ error: 'Champs manquants' })
+  const { nom, email, password, secteur, taille, outils_ia, maturite } = req.body
+  if (!nom || !email || !password) return res.status(400).json({ error: 'Champs manquants' })
   try {
     const hash = await bcrypt.hash(password, 10)
     const { rows } = await pool.query(
-      'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, email, name, role',
-      [email.toLowerCase().trim(), name.trim(), hash]
+      `INSERT INTO organisations (nom, email_admin, password_hash, secteur, taille, outils_ia, maturite, statut_onboarding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'En cours') RETURNING id, nom, email_admin, secteur`,
+      [nom, email.toLowerCase().trim(), hash, secteur, taille, outils_ia, maturite]
     )
-    const user = rows[0]
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET)
-    res.json({ user, token })
-  } catch {
-    res.status(400).json({ error: 'Cet email est déjà utilisé.' })
+    const org = rows[0]
+    const token = jwt.sign({ id: org.id, nom: org.nom, email: org.email_admin }, JWT_SECRET)
+    res.json({ org, token })
+  } catch (e) {
+    if (e.code === '23505') return res.status(400).json({ error: 'Cet email est déjà utilisé.' })
+    res.status(500).json({ error: 'Erreur serveur.' })
   }
 })
 
@@ -46,53 +51,175 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()])
-    const user = rows[0]
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    const { rows } = await pool.query(
+      'SELECT * FROM organisations WHERE email_admin = $1',
+      [email.toLowerCase().trim()]
+    )
+    const org = rows[0]
+    if (!org || !(await bcrypt.compare(password, org.password_hash))) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect.' })
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET)
-    res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role }, token })
+    const token = jwt.sign({ id: org.id, nom: org.nom, email: org.email_admin }, JWT_SECRET)
+    res.json({ org: { id: org.id, nom: org.nom, secteur: org.secteur }, token })
   } catch {
     res.status(500).json({ error: 'Erreur serveur.' })
   }
 })
 
-// POST /api/results — sauvegarder un résultat
-app.post('/api/results', authMiddleware, async (req, res) => {
-  const { score, profil, reponses } = req.body
-  await pool.query(
-    'INSERT INTO results (user_id, score, profil, reponses) VALUES ($1, $2, $3, $4)',
-    [req.user.id, score, profil, JSON.stringify(reponses ?? {})]
-  )
-  res.json({ ok: true })
-})
+// ─── Cas d'usage ──────────────────────────────────────────────────────────────
 
-// GET /api/results — tous les résultats (admin)
-app.get('/api/results', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Accès refusé' })
+// GET /api/usecases
+app.get('/api/usecases', auth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT r.id, r.score, r.profil, r.created_at, u.name, u.email FROM results r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC'
+    'SELECT * FROM usecases WHERE org_id = $1 ORDER BY created_at DESC',
+    [req.org.id]
   )
   res.json(rows)
 })
 
-// GET /api/config — config entreprise active
-app.get('/api/config', async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM company_config ORDER BY updated_at DESC LIMIT 1')
-  res.json(rows[0] ?? null)
+// POST /api/usecases
+app.post('/api/usecases', auth, async (req, res) => {
+  const { intitule, description, equipe, outil_ia, frequence, risques, niveau_risque } = req.body
+  const { rows } = await pool.query(
+    `INSERT INTO usecases (org_id, intitule, description, equipe, outil_ia, frequence, risques, niveau_risque)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [req.org.id, intitule, description, equipe, outil_ia, frequence, risques, niveau_risque]
+  )
+  res.json(rows[0])
 })
 
-// PUT /api/config — sauvegarder config (admin)
-app.put('/api/config', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Accès refusé' })
-  const { company_name, sector, size, tools, context, situations } = req.body
-  await pool.query('DELETE FROM company_config')
-  await pool.query(
-    'INSERT INTO company_config (company_name, sector, size, tools, context, situations) VALUES ($1,$2,$3,$4,$5,$6)',
-    [company_name, sector, size, tools, context, JSON.stringify(situations)]
+// ─── Modules ──────────────────────────────────────────────────────────────────
+
+// GET /api/modules
+app.get('/api/modules', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM modules WHERE org_id = $1 ORDER BY created_at DESC',
+    [req.org.id]
   )
-  res.json({ ok: true })
+  res.json(rows)
+})
+
+// POST /api/modules
+app.post('/api/modules', auth, async (req, res) => {
+  const { titre, description, categorie, niveau, duree_min, equipes_ciblees, contenu, personnalise } = req.body
+  const code = `MODULE_${Date.now().toString().slice(-4)}`
+  const { rows } = await pool.query(
+    `INSERT INTO modules (org_id, titre, code, description, categorie, niveau, duree_min, equipes_ciblees, contenu, personnalise)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [req.org.id, titre, code, description, categorie ?? 'Fondamentaux', niveau ?? 'intermediate',
+     duree_min ?? 12, equipes_ciblees, contenu, personnalise ?? false]
+  )
+  res.json(rows[0])
+})
+
+// ─── Équipes ──────────────────────────────────────────────────────────────────
+
+// GET /api/teams
+app.get('/api/teams', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM teams WHERE org_id = $1 ORDER BY created_at DESC',
+    [req.org.id]
+  )
+  res.json(rows)
+})
+
+// POST /api/teams
+app.post('/api/teams', auth, async (req, res) => {
+  const { nom, description } = req.body
+  const prefix = nom.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'TEAM'
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const suffix = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  const code_acces = `${prefix}-${suffix}`
+  const { rows } = await pool.query(
+    `INSERT INTO teams (org_id, nom, code_acces, description) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [req.org.id, nom, code_acces, description ?? '']
+  )
+  res.json(rows[0])
+})
+
+// ─── Collaborateurs ───────────────────────────────────────────────────────────
+
+// POST /api/join — rejoindre une équipe via code d'accès
+app.post('/api/join', async (req, res) => {
+  const { code, nom, email, role } = req.body
+  try {
+    const { rows: teams } = await pool.query(
+      'SELECT * FROM teams WHERE code_acces = $1',
+      [code]
+    )
+    const team = teams[0]
+    if (!team) return res.status(404).json({ error: 'Code invalide' })
+
+    const { rows } = await pool.query(
+      `INSERT INTO collaborators (org_id, team_id, nom, email, role)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [team.org_id, team.id, nom, email, role ?? '']
+    )
+    await pool.query(
+      'UPDATE teams SET nb_collaborateurs = nb_collaborateurs + 1 WHERE id = $1',
+      [team.id]
+    )
+    res.json({ collaborator: rows[0], team: team.nom })
+  } catch {
+    res.status(500).json({ error: 'Erreur serveur.' })
+  }
+})
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+// POST /api/sessions — sauvegarder un résultat de quiz
+app.post('/api/sessions', async (req, res) => {
+  const { collaborator_id, module_id, org_id, score, total_questions, xp_gagne, duree_min, concepts_maitrises } = req.body
+  const { rows } = await pool.query(
+    `INSERT INTO sessions (org_id, collaborator_id, module_id, score, total_questions, xp_gagne, duree_min, concepts_maitrises)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [org_id, collaborator_id, module_id, score, total_questions, xp_gagne, duree_min, concepts_maitrises]
+  )
+  await pool.query(
+    'UPDATE collaborators SET xp = xp + $1 WHERE id = $2',
+    [xp_gagne ?? 0, collaborator_id]
+  )
+  res.json(rows[0])
+})
+
+// GET /api/sessions — résultats de l'org (admin)
+app.get('/api/sessions', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT s.*, c.nom as collaborateur_nom, m.titre as module_titre
+     FROM sessions s
+     LEFT JOIN collaborators c ON s.collaborator_id = c.id
+     LEFT JOIN modules m ON s.module_id = m.id
+     WHERE s.org_id = $1
+     ORDER BY s.date DESC`,
+    [req.org.id]
+  )
+  res.json(rows)
+})
+
+// ─── Documents (RAG) ──────────────────────────────────────────────────────────
+
+// POST /api/documents — stocker un chunk avec son embedding (appelé par Dev 1)
+app.post('/api/documents', auth, async (req, res) => {
+  const { filename, chunk, embedding } = req.body
+  const { rows } = await pool.query(
+    `INSERT INTO documents (org_id, filename, chunk, embedding)
+     VALUES ($1,$2,$3,$4) RETURNING id`,
+    [req.org.id, filename, chunk, JSON.stringify(embedding)]
+  )
+  res.json(rows[0])
+})
+
+// GET /api/documents/search — recherche vectorielle (appelée par Dev 1)
+app.get('/api/documents/search', auth, async (req, res) => {
+  const { embedding, limit = 5 } = req.body
+  const { rows } = await pool.query(
+    `SELECT chunk FROM documents
+     WHERE org_id = $1
+     ORDER BY embedding <=> $2
+     LIMIT $3`,
+    [req.org.id, JSON.stringify(embedding), limit]
+  )
+  res.json(rows.map(r => r.chunk))
 })
 
 app.listen(3001, () => console.log('Backend LHCtrl running on port 3001'))
