@@ -694,27 +694,21 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
 
 // ─── Generate Module Panel (inline dans Modules) ──────────────────────────────
 
-function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, onCancel }) {
+function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, onSaved, onCancel }) {
   const { saveConfig } = useApp()
   const { generateSituations, loading, error } = useOllama()
 
-  // Pré-remplir avec le cas d'usage si disponible
-  const [form, setForm] = useState({
-    companyName: companyConfig?.companyName || '',
-    sector: companyConfig?.sector || '',
-    size: companyConfig?.size || '',
-    tools: prefillUsecase?.outil_ia || companyConfig?.tools || '',
-    context: prefillUsecase
-      ? `Cas d'usage : ${prefillUsecase.intitule}. Équipe : ${prefillUsecase.equipe || 'Non précisée'}. Outil IA : ${prefillUsecase.outil_ia || 'ChatGPT'}. Niveau de risque : ${prefillUsecase.niveau_risque || 'Modéré'}. ${prefillUsecase.description || ''}`
-      : '',
-    count: 2,
-    questionsPerScenario: 3,
-  })
+  const [selectedUcId, setSelectedUcId] = useState(prefillUsecase?.id || '')
+  const [count, setCount] = useState(2)
+  const [questionsPerScenario, setQuestionsPerScenario] = useState(3)
   const [pdfText, setPdfText] = useState('')
   const [pdfName, setPdfName] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [genProgress, setGenProgress] = useState(null)
   const [genError, setGenError] = useState(null)
+
+  // Cas d'usage sélectionné (soit pré-rempli, soit choisi dans la liste)
+  const selectedUc = prefillUsecase || (usecases || []).find(u => u.id === selectedUcId) || null
 
   async function handlePdf(e) {
     const file = e.target.files?.[0]
@@ -730,42 +724,57 @@ function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, on
   async function handleGenerate(e) {
     e.preventDefault()
     setGenError(null)
-    const config = { ...form, documentContext: pdfText ? pdfText.slice(0, 6000) : undefined }
-    setGenProgress({ current: 0, total: form.count })
-    const situations = await generateSituations(config, form.count, form.questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }))
+
+    // Construire le contexte à partir du profil org + cas d'usage (plus de doublons)
+    const config = {
+      companyName: companyConfig?.companyName || 'Organisation',
+      sector: selectedUc?.equipe
+        ? `${companyConfig?.sector || 'Entreprise'} — équipe ${selectedUc.equipe}`
+        : (companyConfig?.sector || 'Entreprise'),
+      size: companyConfig?.size || '',
+      tools: selectedUc?.outil_ia || companyConfig?.tools || 'ChatGPT',
+      context: selectedUc
+        ? `Cas d'usage : ${selectedUc.intitule}. Niveau de risque : ${selectedUc.niveau_risque || 'Modéré'}. ${selectedUc.description || ''} ${selectedUc.recommandation || ''}`
+        : '',
+      documentContext: pdfText ? pdfText.slice(0, 6000) : undefined,
+    }
+
+    setGenProgress({ current: 0, total: count })
+    const situations = await generateSituations(config, count, questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }))
     setGenProgress(null)
     if (!situations) { setGenError(error || 'Génération échouée'); return }
 
-    // Sauvegarder la config + situations dans le contexte ET en base
-    await saveConfig(form, situations)
+    await saveConfig(config, situations)
 
-    // Créer un module en base avec le contenu généré
     try {
+      const titre = selectedUc
+        ? `${selectedUc.intitule} — ${companyConfig?.companyName || 'Organisation'}`
+        : `Sensibilisation IA — ${companyConfig?.companyName || 'Organisation'}`
       await fetch(apiUrl('/api/modules'), {
         method: 'POST',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          titre: `Sensibilisation IA — ${form.companyName || 'Organisation'}`,
-          description: `Module personnalisé · ${form.count} thème${form.count > 1 ? 's' : ''} · ${form.questionsPerScenario} questions/thème`,
-          categorie: form.sector || 'Fondamentaux',
-          niveau: 'intermediate',
-          duree_min: form.count * form.questionsPerScenario * 2,
+          titre,
+          description: `${count} thème${count > 1 ? 's' : ''} · ${questionsPerScenario} questions/thème${selectedUc?.equipe ? ` · Équipe ${selectedUc.equipe}` : ''}`,
+          categorie: selectedUc?.equipe || companyConfig?.sector || 'Fondamentaux',
+          niveau: selectedUc?.niveau_risque === 'Élevé' ? 'advanced' : 'intermediate',
+          duree_min: count * questionsPerScenario * 2,
           personnalise: true,
           contenu: JSON.stringify(situations),
         }),
       })
-    } catch { /* silencieux, situations déjà sauvées en contexte */ }
+    } catch { /* silencieux */ }
 
     if (onSaved) onSaved()
   }
 
-  const numInput = (label, key, min, max) => (
+  const numInput = (label, val, setVal, min, max) => (
     <Field label={label}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button type="button" onClick={() => setForm(f => ({...f, [key]: Math.max(min, f[key]-1)}))}
+        <button type="button" onClick={() => setVal(v => Math.max(min, v - 1))}
           style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>−</button>
-        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, color: C.ink, minWidth: 28, textAlign: "center" }}>{form[key]}</span>
-        <button type="button" onClick={() => setForm(f => ({...f, [key]: Math.min(max, f[key]+1)}))}
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, color: C.ink, minWidth: 28, textAlign: "center" }}>{val}</span>
+        <button type="button" onClick={() => setVal(v => Math.min(max, v + 1))}
           style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>+</button>
       </div>
     </Field>
@@ -776,36 +785,44 @@ function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, on
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 17, color: C.ink }}>Générer un module IA</div>
-          <div style={{ fontSize: 12.5, color: C.inkMute, marginTop: 3, fontFamily: SANS }}>L'IA va créer des scénarios quiz personnalisés pour vos équipes.</div>
+          <div style={{ fontSize: 12.5, color: C.inkMute, marginTop: 3, fontFamily: SANS }}>L'IA crée des scénarios quiz à partir du profil de l'organisation et du cas d'usage.</div>
         </div>
         <div onClick={onCancel}><Btn kind="ghost" size="sm" icon="x">Annuler</Btn></div>
       </div>
 
       <form onSubmit={handleGenerate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <Field label="Entreprise">
-              <Input placeholder="Nom de l'organisation" value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} />
-            </Field>
-          </div>
-          <div style={{ flex: 1 }}>
-            <Field label="Secteur">
-              <Input placeholder="Finance, RH, Tech…" value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} />
-            </Field>
-          </div>
-        </div>
 
-        <Field label="Outils IA utilisés">
-          <Input placeholder="ChatGPT, Copilot, Gemini…" value={form.tools} onChange={e => setForm({...form, tools: e.target.value})} />
-        </Field>
+        {/* Sélecteur de cas d'usage */}
+        {!prefillUsecase && (
+          <Field label="Cas d'usage ciblé" hint="Choisissez le cas d'usage pour lequel générer ce module de formation.">
+            <select value={selectedUcId} onChange={e => setSelectedUcId(e.target.value)}
+              style={{ width: "100%", height: 44, border: `1px solid ${selectedUcId ? C.signal : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: selectedUcId ? C.ink : C.inkMute, outline: "none" }}>
+              <option value="">Aucun — module générique</option>
+              {(usecases || []).map(uc => (
+                <option key={uc.id} value={uc.id}>
+                  {uc.intitule} {uc.niveau_risque ? `(${uc.niveau_risque})` : ''} {uc.equipe ? `— ${uc.equipe}` : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
-        <Field label="Contexte supplémentaire (optionnel)">
-          <Input placeholder="Ex : equipes commerciales terrain, sensibilisation RGPD…" value={form.context} onChange={e => setForm({...form, context: e.target.value})} />
-        </Field>
+        {/* Résumé du cas d'usage sélectionné */}
+        {selectedUc && (
+          <div style={{ background: C.signalSoft, border: `1px solid ${C.signal}`, borderRadius: 11, padding: "12px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <Icon name="bulb" size={16} color={C.signal} />
+            <div style={{ fontSize: 13, color: C.ink, fontFamily: SANS, lineHeight: 1.5 }}>
+              <strong>{selectedUc.intitule}</strong>
+              {selectedUc.equipe && <> · Équipe <strong>{selectedUc.equipe}</strong></>}
+              {selectedUc.outil_ia && <> · Outil <strong>{selectedUc.outil_ia}</strong></>}
+              {selectedUc.niveau_risque && <> · Risque <strong>{selectedUc.niveau_risque}</strong></>}
+            </div>
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 24 }}>
-          {numInput("Nombre de thèmes", "count", 1, 5)}
-          {numInput("Questions / thème", "questionsPerScenario", 1, 10)}
+          {numInput("Nombre de thèmes", count, setCount, 1, 5)}
+          {numInput("Questions / thème", questionsPerScenario, setQuestionsPerScenario, 1, 10)}
         </div>
 
         {/* PDF */}
@@ -833,7 +850,7 @@ function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, on
 
         <button type="submit" disabled={loading} style={{ background: "none", border: "none", padding: 0, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
           <Btn kind="primary" size="lg" icon="brain" full>
-            {loading ? `Génération en cours…` : `Générer ${form.count} thème${form.count > 1 ? 's' : ''} (${form.count * form.questionsPerScenario} questions)`}
+            {loading ? `Génération en cours…` : `Générer ${count} thème${count > 1 ? 's' : ''} (${count * questionsPerScenario} questions)`}
           </Btn>
         </button>
       </form>
@@ -843,7 +860,7 @@ function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, on
 
 // ─── Modules View ─────────────────────────────────────────────────────────────
 
-function ModulesView({ modules, teams, token, companyConfig, pendingUsecase, onModuleSaved }) {
+function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUsecase, onModuleSaved }) {
   const [showGenerate, setShowGenerate] = useState(!!pendingUsecase)
 
   // Si un cas d'usage arrive en attente, ouvrir automatiquement le panneau
@@ -876,6 +893,7 @@ function ModulesView({ modules, teams, token, companyConfig, pendingUsecase, onM
         <GenerateModulePanel
           token={token}
           companyConfig={companyConfig}
+          usecases={usecases}
           prefillUsecase={pendingUsecase}
           onSaved={() => { setShowGenerate(false); if (onModuleSaved) onModuleSaved() }}
           onCancel={() => setShowGenerate(false)}
@@ -1135,6 +1153,7 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           <ModulesView
             modules={modules}
             teams={teams}
+            usecases={usecases}
             token={token}
             companyConfig={companyConfig}
             pendingUsecase={pendingUsecase}
