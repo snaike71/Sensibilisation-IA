@@ -254,7 +254,7 @@ app.post('/api/teams', auth, async (req, res) => {
   const { nom, description } = req.body
   const prefix = nom.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'TEAM'
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const suffix = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  const suffix = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   const code_acces = `${prefix}-${suffix}`
   const { rows } = await pool.query(
     `INSERT INTO teams (org_id, nom, code_acces, description) VALUES ($1,$2,$3,$4) RETURNING *`,
