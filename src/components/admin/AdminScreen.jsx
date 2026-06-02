@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useOllama } from '../hooks/useOllama.js'
-import { useApp } from '../context/AppContext.jsx'
-import { extractPdfText } from '../utils/pdfExtract.js'
-import { isSupabaseConfigured, indexDocument, retrieveContext } from '../utils/supabaseRag.js'
+import { useOllama } from '../../hooks/useOllama.js'
+import { useApp } from '../../context/AppContext.jsx'
+import { extractPdfText } from '../../utils/pdfExtract.js'
+import { isSupabaseConfigured, indexDocument, retrieveContext } from '../../utils/supabaseRag.js'
 
 function PdfPreviewBlock({ text }) {
   const [open, setOpen] = useState(false)
@@ -105,6 +105,7 @@ export default function AdminScreen({ onBack }) {
   const [ragChunksUsed, setRagChunksUsed] = useState(null)
   const useRag = isSupabaseConfigured()
   const [selectedIds, setSelectedIds] = useState(null) // null = tout sélectionné
+  const [genProgress, setGenProgress] = useState(null) // { current, total } pendant génération
 
   function handleLogin(e) {
     e.preventDefault()
@@ -138,7 +139,7 @@ export default function AdminScreen({ onBack }) {
 
   async function handleGenerate(e) {
     e.preventDefault()
-    if (form.count * form.questionsPerScenario > 9) return
+    // Pas de cap dur — génération thème par thème
     let documentContext = pdfPreview ? pdfPreview.slice(0, 6000) : undefined
 
     // Si Supabase RAG est actif et qu'un PDF est chargé, vectoriser maintenant puis récupérer
@@ -168,7 +169,14 @@ export default function AdminScreen({ onBack }) {
     }
 
     const configWithDoc = { ...form, documentContext }
-    const situations = await generateSituations(configWithDoc, form.count, form.questionsPerScenario)
+    setGenProgress({ current: 0, total: form.count })
+    const situations = await generateSituations(
+      configWithDoc,
+      form.count,
+      form.questionsPerScenario,
+      (current, total) => setGenProgress({ current, total })
+    )
+    setGenProgress(null)
     if (situations) {
       setPreview(situations)
       setSelectedIds(situations.map((s) => s.id))
@@ -291,7 +299,7 @@ export default function AdminScreen({ onBack }) {
         <div className="w-full max-w-lg">
           <h2 className="text-2xl font-black text-center mb-2">Personnaliser le kit</h2>
           <p className="text-gray-400 text-sm text-center mb-8">
-            Renseignez le contexte de votre organisation. L'IA générera 4 scénarios sur mesure.
+            Renseignez le contexte de votre organisation. L'IA générera des scénarios sur mesure.
           </p>
 
           <form onSubmit={handleGenerate} className="flex flex-col gap-5">
@@ -460,7 +468,7 @@ export default function AdminScreen({ onBack }) {
                 Nombre de thèmes
               </label>
               <div className="flex gap-2 flex-wrap">
-                {[2, 3, 4].map((n) => (
+                {[1, 2, 3, 4, 5].map((n) => (
                   <button key={n} type="button" onClick={() => setForm({ ...form, count: n })}
                     className={`w-12 h-12 rounded-xl text-sm font-bold border transition-all ${form.count === n ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
                     {n}
@@ -475,7 +483,7 @@ export default function AdminScreen({ onBack }) {
                 Questions par thème
               </label>
               <div className="flex gap-2 flex-wrap">
-                {[2, 3, 4].map((n) => (
+                {[2, 3, 4, 5, 6, 8, 10].map((n) => (
                   <button key={n} type="button" onClick={() => setForm({ ...form, questionsPerScenario: n })}
                     className={`w-12 h-12 rounded-xl text-sm font-bold border transition-all ${form.questionsPerScenario === n ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}>
                     {n}
@@ -483,11 +491,9 @@ export default function AdminScreen({ onBack }) {
                 ))}
               </div>
               {form.count && form.questionsPerScenario && (
-                <p className="text-xs mt-2">
-                  Total : <span className={`${form.count * form.questionsPerScenario > 9 ? 'text-red-400' : 'text-white/50'}`}>
-                    {form.count} × {form.questionsPerScenario} = {form.count * form.questionsPerScenario} questions
-                    {form.count * form.questionsPerScenario > 9 ? ' — ⚠️ dépasse la limite du modèle (max 9)' : ''}
-                  </span>
+                <p className="text-xs mt-2 text-white/50">
+                  Total : {form.count} × {form.questionsPerScenario} = {form.count * form.questionsPerScenario} questions
+                  {form.count * form.questionsPerScenario > 30 ? ' — ⚠️ génération longue (~' + Math.round(form.count * form.questionsPerScenario * 8) + 's)' : ''}
                 </p>
               )}
             </div>
@@ -508,10 +514,22 @@ export default function AdminScreen({ onBack }) {
               }`}
             >
               {loading ? (
-                <>
-                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Génération en cours…
-                </>
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {genProgress
+                      ? `Thème ${genProgress.current + 1} / ${genProgress.total} en cours…`
+                      : 'Génération en cours…'}
+                  </div>
+                  {genProgress && (
+                    <div className="w-full bg-white/10 rounded-full h-1.5">
+                      <div
+                        className="bg-white rounded-full h-1.5 transition-all duration-500"
+                        style={{ width: `${(genProgress.current / genProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 '✨ Générer les scénarios avec l\'IA →'
               )}

@@ -209,6 +209,42 @@ app.get('/api/sessions', auth, async (req, res) => {
   res.json(rows)
 })
 
+// GET /api/collaborators/:id — récupérer les infos d'un collaborateur
+app.get('/api/collaborators/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.*, t.nom as team_name
+       FROM collaborators c
+       LEFT JOIN teams t ON c.team_id = t.id
+       WHERE c.id = $1`,
+      [id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Collaborateur non trouvé' })
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// GET /api/collaborators/:id/sessions — récupérer les sessions d'un collaborateur
+app.get('/api/collaborators/:id/sessions', async (req, res) => {
+  const { id } = req.params
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.*, m.titre as module_titre
+       FROM sessions s
+       LEFT JOIN modules m ON s.module_id = m.id
+       WHERE s.collaborator_id = $1
+       ORDER BY s.date DESC`,
+      [id]
+    )
+    res.json(rows)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── Config quiz (couche de compatibilité) ────────────────────────────────────
 
 // GET /api/config — charge la config de l'organisation depuis modules
@@ -222,6 +258,21 @@ app.get('/api/config', auth, async (req, res) => {
     res.json(JSON.parse(rows[0].contenu))
   } catch {
     res.json(null)
+  }
+})
+
+// GET /api/config/org/:org_id — récupérer la config publique d'une organisation
+app.get('/api/config/org/:org_id', async (req, res) => {
+  const { org_id } = req.params
+  try {
+    const { rows } = await pool.query(
+      "SELECT contenu FROM modules WHERE org_id = $1 AND code = 'QUIZ_CONFIG' LIMIT 1",
+      [org_id]
+    )
+    if (!rows.length || !rows[0].contenu) return res.json(null)
+    res.json(JSON.parse(rows[0].contenu))
+  } catch (e) {
+    res.status(500).json({ error: e.message })
   }
 })
 

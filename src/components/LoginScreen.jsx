@@ -97,6 +97,21 @@ export default function LoginScreen({ onSuccess }) {
         >
           {mode === 'login' ? "Pas encore de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
         </button>
+
+        {import.meta.env.DEV && (
+          <button
+            onClick={() => {
+              login(
+                { id: 'dev-org', nom: 'Organisation Dev', email: 'dev@dev.local' },
+                'dev-bypass-token'
+              )
+              onSuccess()
+            }}
+            className="w-full mt-3 px-4 py-2 rounded-xl border border-dashed border-yellow-500/40 text-yellow-400/60 hover:text-yellow-400 hover:border-yellow-500/70 text-xs font-mono transition-colors text-center"
+          >
+            ⚡ Accès Dev (bypass login)
+          </button>
+        )}
       </div>
     </div>
   )
