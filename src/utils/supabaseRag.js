@@ -4,6 +4,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const EMBED_MODEL = 'nomic-embed-text'
+const OLLAMA_HEADERS = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
 
 // Supabase client — null si les clés ne sont pas configurées
 const supabase =
@@ -43,7 +44,7 @@ export async function embedText(text) {
       : JSON.stringify({ model: EMBED_MODEL, prompt: text })
     const res = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: OLLAMA_HEADERS,
       body,
     })
     if (!res.ok) continue

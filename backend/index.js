@@ -19,7 +19,12 @@ pool.on('error', (err) => console.error('Pool error:', err.message))
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err))
 const JWT_SECRET = process.env.JWT_SECRET || 'lhc-secret-2026'
 
-app.use(cors())
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'],
+}))
+app.options('*', cors())
 app.use(express.json())
 
 function auth(req, res, next) {

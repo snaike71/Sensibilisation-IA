@@ -3,6 +3,12 @@ import { useState } from 'react'
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const MODEL = 'gemma4:e2b'
 
+// Header requis pour bypasser la page d'avertissement ngrok (tunnel gratuit)
+const OLLAMA_HEADERS = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+}
+
 // Normalise bonneReponse : seules "ia" et "humain" sont valides
 function normalizeReponse(val, categorie) {
   if (val === 'ia') return 'ia'
@@ -131,7 +137,7 @@ function extractSituations(raw) {
 async function callOllama(prompt) {
   const res = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: OLLAMA_HEADERS,
     body: JSON.stringify({ model: MODEL, prompt, stream: false }),
   })
   if (!res.ok) throw new Error(`Ollama inaccessible (HTTP ${res.status})`)
@@ -150,7 +156,7 @@ export function useOllama() {
     try {
       const res = await fetch(`${OLLAMA_URL}/api/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: OLLAMA_HEADERS,
         body: JSON.stringify({
           model: MODEL,
           prompt: buildPrompt(config, count, questionsPerScenario),
