@@ -11,16 +11,16 @@ import ScoreScreen from './components/apprenant/ScoreScreen.jsx'
 import AdminHub from './components/admin/AdminHub.jsx'
 import AdminScreen from './components/admin/AdminScreen.jsx'
 
-// phases : 'login' | 'role-select' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
+// phases : 'role-select' | 'login' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
 
 export default function App() {
   const { user, token, collaborator, logout } = useApp()
 
-  // Si déjà connecté (refresh), on repart directement sur role-select
+  // Point d'entrée : role-select (sauf si déjà connecté au refresh)
   const [phase, setPhase] = useState(() => {
-    if (user || token) return 'role-select'
-    if (collaborator) return 'apprenant-dashboard'
-    return 'login'
+    if (user || token) return 'admin'          // admin déjà connecté → son hub
+    if (collaborator) return 'apprenant-dashboard' // collaborateur → son dashboard
+    return 'role-select'                        // sinon → choix du rôle
   })
 
   const [score, setScore] = useState(0)
@@ -40,21 +40,23 @@ export default function App() {
 
   function handleLogout() {
     logout()
-    setPhase('login')
+    setPhase('role-select')
   }
 
-  if (phase === 'login') {
-    return <LoginScreen onSuccess={() => setPhase('role-select')} />
-  }
-
+  // Écran d'accueil : choix du rôle (pas de login ici)
   if (phase === 'role-select') {
     return (
       <RoleSelectScreen
-        onAdmin={() => setPhase('admin')}
+        onAdmin={() => setPhase('login')}
         onApprenant={() => setPhase('join-team')}
         onLogout={handleLogout}
       />
     )
+  }
+
+  // Login admin uniquement (déclenché par "Accéder à l'admin")
+  if (phase === 'login') {
+    return <LoginScreen onSuccess={() => setPhase('admin')} onBack={() => setPhase('role-select')} />
   }
 
   if (phase === 'join-team') {

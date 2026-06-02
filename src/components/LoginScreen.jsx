@@ -48,7 +48,7 @@ function TextInput({ type = 'text', placeholder, value, onChange, icon }) {
   )
 }
 
-export default function LoginScreen({ onSuccess }) {
+export default function LoginScreen({ onSuccess, onBack }) {
   const { login } = useApp()
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ email: '', name: '', password: '' })
@@ -87,7 +87,28 @@ export default function LoginScreen({ onSuccess }) {
       justifyContent: 'center',
       padding: '24px',
       fontFamily: SANS,
+      position: 'relative',
     }}>
+      {/* Bouton retour */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            position: 'absolute', top: 24, left: 32,
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: MONO, fontSize: 11.5, color: C.inkMute,
+            display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = C.inkSoft}
+          onMouseLeave={(e) => e.currentTarget.style.color = C.inkMute}
+        >
+          <Icon name="chevL" size={14} color={C.inkMute} />
+          Retour
+        </button>
+      )}
+
       {/* Logo */}
       <div style={{ marginBottom: 32 }}>
         <Logo size={28} />
