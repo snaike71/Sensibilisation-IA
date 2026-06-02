@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { apiUrl } from '../utils/api.js'
+import { apiUrl, API_HEADERS } from '../utils/api.js'
 
 export default function LoginScreen({ onSuccess }) {
   const { login } = useApp()
@@ -21,7 +21,7 @@ export default function LoginScreen({ onSuccess }) {
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify(body),
       })
       const data = await res.json()

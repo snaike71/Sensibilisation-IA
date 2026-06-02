@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { apiUrl } from '../utils/api.js'
+import { apiUrl, API_HEADERS } from '../utils/api.js'
 
 function normalizeReponse(val, categorie) {
   if (val === 'ia') return 'ia'
@@ -40,7 +40,7 @@ export function AppProvider({ children }) {
     if (!t) return
     try {
       const r = await fetch(apiUrl('/api/config'), {
-        headers: { Authorization: `Bearer ${t}` },
+        headers: { ...API_HEADERS, Authorization: `Bearer ${t}` },
       })
       if (!r.ok) return
       const data = await r.json()
@@ -89,7 +89,7 @@ export function AppProvider({ children }) {
     setCustomSituations(situations)
     await fetch(apiUrl('/api/config'), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         company_name: config.companyName,
         sector: config.sector,
@@ -105,7 +105,7 @@ export function AppProvider({ children }) {
     if (!token) return
     await fetch(apiUrl('/api/results'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
       body: JSON.stringify({ score, profil, reponses }),
     })
   }
