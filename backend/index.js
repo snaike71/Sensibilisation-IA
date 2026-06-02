@@ -81,6 +81,27 @@ app.post('/api/auth/login', async (req, res) => {
   }
 })
 
+// PUT /api/organisations — mettre à jour le profil de l'organisation (onboarding)
+app.put('/api/organisations', auth, async (req, res) => {
+  const { secteur, taille, outils_ia, maturite, statut_onboarding } = req.body
+  try {
+    const { rows } = await pool.query(
+      `UPDATE organisations
+       SET secteur = COALESCE($1, secteur),
+           taille  = COALESCE($2, taille),
+           outils_ia = COALESCE($3, outils_ia),
+           maturite = COALESCE($4, maturite),
+           statut_onboarding = COALESCE($5, statut_onboarding)
+       WHERE id = $6
+       RETURNING id, nom, secteur, taille, outils_ia, maturite, statut_onboarding`,
+      [secteur, taille, outils_ia, maturite, statut_onboarding, req.org.id]
+    )
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── Cas d'usage ──────────────────────────────────────────────────────────────
 
 // GET /api/usecases
