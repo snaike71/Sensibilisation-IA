@@ -33,6 +33,19 @@ export function AppProvider({ children }) {
 
   const [companyConfig, setCompanyConfig] = useState(null)
   const [customSituations, setCustomSituations] = useState(null)
+  
+  const [collaborator, setCollaboratorState] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lhc_collaborator')) } catch { return null }
+  })
+
+  function setCollaborator(val) {
+    setCollaboratorState(val)
+    if (val) {
+      localStorage.setItem('lhc_collaborator', JSON.stringify(val))
+    } else {
+      localStorage.removeItem('lhc_collaborator')
+    }
+  }
 
   // Charge la config de l'org après connexion (token requis)
   async function loadConfig(jwt) {
@@ -57,11 +70,37 @@ export function AppProvider({ children }) {
     } catch { /* silencieux */ }
   }
 
+  // Charge la config de l'org pour le collaborateur (public par org_id)
+  async function loadCollaboratorConfig(orgId) {
+    if (!orgId) return
+    try {
+      const r = await fetch(apiUrl(`/api/config/org/${orgId}`))
+      if (!r.ok) return
+      const data = await r.json()
+      if (data) {
+        setCompanyConfig({
+          companyName: data.company_name,
+          sector: data.sector,
+          size: data.size,
+          tools: data.tools,
+          context: data.context,
+        })
+        if (data.situations) setCustomSituations(normalizeSituations(data.situations))
+      }
+    } catch { /* silencieux */ }
+  }
+
   // Recharge la config au démarrage si un token est déjà présent
   useEffect(() => { loadConfig() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Charge la config du collaborateur quand il se connecte
+  useEffect(() => {
+    if (collaborator?.org_id) {
+      loadCollaboratorConfig(collaborator.org_id)
+    }
+  }, [collaborator?.org_id])
+
   function login(orgData, jwtToken) {
-    // orgData peut venir du nouveau backend ({id, nom, secteur}) ou d'un ancien token
     const userData = {
       id: orgData.id,
       name: orgData.nom ?? orgData.name,
@@ -80,6 +119,7 @@ export function AppProvider({ children }) {
     setToken(null)
     setCompanyConfig(null)
     setCustomSituations(null)
+    setCollaborator(null)
     localStorage.removeItem('lhc_user')
     localStorage.removeItem('lhc_token')
   }
@@ -101,17 +141,42 @@ export function AppProvider({ children }) {
     })
   }
 
-  async function saveResult(score, profil, reponses) {
-    if (!token) return
-    await fetch(apiUrl('/api/results'), {
-      method: 'POST',
-      headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ score, profil, reponses }),
-    })
+  async function saveResult(score, profil, reponses, totalQuestions = 4) {
+    if (token) {
+      await fetch(apiUrl('/api/results'), {
+        method: 'POST',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ score, profil, reponses }),
+      })
+    } else if (collaborator) {
+      const xp_gagne = Math.round((score / Math.max(totalQuestions, 1)) * 150)
+      const res = await fetch(apiUrl('/api/sessions'), {
+        method: 'POST',
+        headers: API_HEADERS,
+        body: JSON.stringify({
+          collaborator_id: collaborator.id,
+          org_id: collaborator.org_id,
+          score,
+          total_questions: totalQuestions,
+          xp_gagne,
+          duree_min: 10,
+          concepts_maitrises: profil
+        })
+      })
+      if (res.ok) {
+        try {
+          const freshRes = await fetch(apiUrl(`/api/collaborators/${collaborator.id}`))
+          if (freshRes.ok) {
+            const freshData = await freshRes.json()
+            setCollaborator({ ...freshData, teamName: freshData.team_name || collaborator.teamName })
+          }
+        } catch { /* silencieux */ }
+      }
+    }
   }
 
   return (
-    <AppContext.Provider value={{ user, token, login, logout, companyConfig, customSituations, saveConfig, saveResult }}>
+    <AppContext.Provider value={{ user, token, login, logout, companyConfig, customSituations, saveConfig, saveResult, collaborator, setCollaborator }}>
       {children}
     </AppContext.Provider>
   )

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useOllama } from '../hooks/useOllama.js'
-import { useApp } from '../context/AppContext.jsx'
-import { extractPdfText } from '../utils/pdfExtract.js'
-import { isSupabaseConfigured, indexDocument, retrieveContext } from '../utils/supabaseRag.js'
+import { useOllama } from '../../hooks/useOllama.js'
+import { useApp } from '../../context/AppContext.jsx'
+import { extractPdfText } from '../../utils/pdfExtract.js'
+import { isSupabaseConfigured, indexDocument, retrieveContext } from '../../utils/supabaseRag.js'
 
 function PdfPreviewBlock({ text }) {
   const [open, setOpen] = useState(false)
@@ -299,7 +299,7 @@ export default function AdminScreen({ onBack }) {
         <div className="w-full max-w-lg">
           <h2 className="text-2xl font-black text-center mb-2">Personnaliser le kit</h2>
           <p className="text-gray-400 text-sm text-center mb-8">
-            Renseignez le contexte de votre organisation. L'IA générera 4 scénarios sur mesure.
+            Renseignez le contexte de votre organisation. L'IA générera des scénarios sur mesure.
           </p>
 
           <form onSubmit={handleGenerate} className="flex flex-col gap-5">

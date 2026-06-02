@@ -1,20 +1,22 @@
-import { useApp } from '../context/AppContext.jsx'
+import { useApp } from '../../context/AppContext.jsx'
 
-export default function AccrocheScreen({ onStart, onAdmin, onLogout }) {
-  const { companyConfig, user } = useApp()
-  const isAdmin = user?.role === 'admin'
+export default function AccrocheScreen({ onStart, onLogout }) {
+  const { companyConfig, collaborator } = useApp()
+  const prenom = collaborator?.nom?.split(' ')[0]
 
   return (
     <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center p-6 text-brand-offwhite">
 
-      {/* Header avec déconnexion */}
+      {/* Header */}
       <div className="absolute top-5 right-6 flex items-center gap-3">
-        <span className="text-white/30 text-xs font-mono">{user?.name}</span>
+        {prenom && (
+          <span className="text-white/30 text-xs font-mono">{collaborator.nom}</span>
+        )}
         <button
           onClick={onLogout}
           className="text-white/20 hover:text-white/60 text-xs font-mono transition-colors"
         >
-          Déconnexion
+          Quitter
         </button>
       </div>
 
@@ -77,15 +79,6 @@ export default function AccrocheScreen({ onStart, onAdmin, onLogout }) {
 
       <p className="mt-4 text-xs text-brand-offwhite/25 font-mono">~10 minutes · Usage individuel</p>
 
-      {/* Accès admin — visible uniquement pour les admins */}
-      {isAdmin && (
-        <button
-          onClick={onAdmin}
-          className="mt-10 px-5 py-2.5 rounded-xl bg-white/5 border border-white/15 hover:bg-white/10 text-brand-offwhite/70 hover:text-brand-offwhite text-xs font-mono transition-all flex items-center gap-2"
-        >
-          ⚙ {companyConfig ? 'Modifier les scénarios' : 'Configurer les scénarios'}
-        </button>
-      )}
     </div>
   )
 }
