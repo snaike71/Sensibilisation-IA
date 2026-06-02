@@ -8,14 +8,14 @@ import ApprenantDashboard from './components/apprenant/ApprenantDashboard.jsx'
 import AccrocheScreen from './components/apprenant/AccrocheScreen.jsx'
 import Quiz from './components/apprenant/Quiz.jsx'
 import ScoreScreen from './components/apprenant/ScoreScreen.jsx'
+import AdminHub from './components/admin/AdminHub.jsx'
 import AdminScreen from './components/admin/AdminScreen.jsx'
 
-// phases : 'login' | 'role-select' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin'
+// phases : 'login' | 'role-select' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
 
 export default function App() {
   const { user, logout } = useApp()
   const [phase, setPhase] = useState('login')
-
   const [score, setScore] = useState(0)
   const [total, setTotal] = useState(0)
 
@@ -36,9 +36,7 @@ export default function App() {
     setPhase('login')
   }
 
-  if (phase === 'login') {
-    return <LoginScreen onSuccess={() => setPhase('role-select')} />
-  }
+  if (phase === 'login') return <LoginScreen onSuccess={() => setPhase('role-select')} />
 
   if (phase === 'role-select') {
     return (
@@ -68,17 +66,24 @@ export default function App() {
     )
   }
 
+  // Admin : dashboard principal (nouveau design lhctrl)
   if (phase === 'admin') {
-    return <AdminScreen onBack={() => setPhase('role-select')} />
+    return (
+      <AdminHub
+        onBack={() => setPhase('role-select')}
+        onGenerateModule={() => setPhase('admin-generate')}
+      />
+    )
   }
 
-  if (phase === 'accroche') {
-    return <AccrocheScreen onStart={() => setPhase('quiz')} onLogout={handleLogout} />
+  // Admin : générateur IA de scénarios quiz (panneau de configuration IA)
+  if (phase === 'admin-generate') {
+    return <AdminScreen onBack={() => setPhase('admin')} />
   }
 
-  if (phase === 'quiz') {
-    return <Quiz onFinish={handleQuizFinish} />
-  }
+  if (phase === 'accroche') return <AccrocheScreen onStart={() => setPhase('quiz')} onLogout={handleLogout} />
+
+  if (phase === 'quiz') return <Quiz onFinish={handleQuizFinish} />
 
   return <ScoreScreen score={score} total={total} onRestart={handleRestart} onGoToDashboard={() => setPhase('apprenant-dashboard')} />
 }

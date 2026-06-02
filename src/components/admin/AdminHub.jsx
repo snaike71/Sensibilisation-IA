@@ -649,8 +649,8 @@ function TeamsView({ teams, token, onTeamCreated }) {
 
 // ─── AdminHub (main export) ───────────────────────────────────────────────────
 
-export default function AdminHub({ onBack }) {
-  const { state, companyConfig } = useApp()
+export default function AdminHub({ onBack, onGenerateModule }) {
+  const { user, token, companyConfig } = useApp()
   const [activeTab, setActiveTab] = useState('dashboard')
 
   // Unified lists state
@@ -659,9 +659,6 @@ export default function AdminHub({ onBack }) {
   const [teams, setTeams] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
-
-  const token = state?.token || state?.user?.token || null
-  const user = state?.user || null
 
   const fetchData = async () => {
     if (!token) {
@@ -696,15 +693,12 @@ export default function AdminHub({ onBack }) {
     fetchData()
   }, [token])
 
-  const handleGenerateModule = (uc) => {
-    alert(`Génération IA lancée pour le cas d'usage : "${uc.intitule || uc.texte || 'Cas'}"...\nNouveau module généré sous 30 sec.`)
+  const handleGenerateModule = () => {
+    if (onGenerateModule) onGenerateModule()
   }
 
   const triggerGenerateFreeModule = () => {
-    const prompt = window.prompt("Entrez le thème du module à générer par l'IA :", "Sensibilisation phishing ciblé par équipe")
-    if (prompt) {
-      alert(`Génération IA lancée pour le thème : "${prompt}"...`)
-    }
+    if (onGenerateModule) onGenerateModule()
   }
 
   const avgMaturity = sessions.length > 0
