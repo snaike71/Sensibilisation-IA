@@ -1,84 +1,72 @@
 import { useApp } from '../../context/AppContext.jsx'
+import { C, MONO, SANS, Logo, Icon, Btn, Mark } from '../lhctrl-kit.jsx'
 
-export default function AccrocheScreen({ onStart, onLogout }) {
+export default function AccrocheScreen({ onStart, onLogout, module }) {
   const { companyConfig, collaborator } = useApp()
-  const prenom = collaborator?.nom?.split(' ')[0]
+  const prenom = collaborator?.nom?.split(' ')[0] ?? 'Apprenant'
+  const moduleTitle = module?.titre || null
+  const nbScenarios = (() => {
+    if (!module?.contenu) return null
+    try { return JSON.parse(module.contenu).length } catch { return null }
+  })()
 
   return (
-    <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center p-6 text-brand-offwhite">
+    <div style={{ minHeight: "100vh", background: C.night, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, position: "relative", overflow: "hidden", fontFamily: SANS }}>
+      {/* Filigrane */}
+      <div style={{ position: "absolute", right: -60, bottom: -60, opacity: 0.08 }}>
+        <Mark size={380} color={C.cyan} />
+      </div>
 
       {/* Header */}
-      <div className="absolute top-5 right-6 flex items-center gap-3">
-        {prenom && (
-          <span className="text-white/30 text-xs font-mono">{collaborator.nom}</span>
-        )}
-        <button
-          onClick={onLogout}
-          className="text-white/20 hover:text-white/60 text-xs font-mono transition-colors"
-        >
-          Quitter
-        </button>
+      <div style={{ position: "absolute", top: 22, left: 28 }}>
+        <Logo size={18} />
       </div>
-
-      {/* Logo */}
-      <img src="/logo-white.svg" alt="lhctrl." className="h-10 mb-10 opacity-90" />
-
-      {/* Bandeau entreprise si configuré */}
-      {companyConfig && (
-        <div className="mb-6 px-5 py-2 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-mono tracking-widest uppercase flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-pulse inline-block" />
-          Scénarios personnalisés · {companyConfig.companyName}
-        </div>
-      )}
-
-      {/* Titre */}
-      <h1 className="font-mono font-bold text-4xl md:text-5xl text-center leading-tight mb-4">
-        L'IA, ça<br />
-        <span className="text-brand-blue">se contrôle.</span>
-      </h1>
-
-      {/* Principe LHC */}
-      <div className="mt-6 max-w-lg bg-white/[0.04] border border-white/10 rounded-2xl p-5 text-center">
-        <p className="text-xs text-brand-cyan font-mono uppercase tracking-widest mb-2">
-          Principe LHC · Limitless Human Control
-        </p>
-        <p className="text-brand-offwhite/70 text-sm leading-relaxed font-sans">
-          Automatiser les tâches chronophages à faible valeur, garder l'humain
-          maître des décisions à fort enjeu, sans jamais exposer l'information
-          sensible.
-        </p>
-      </div>
-
-      {/* Contexte */}
-      <div className="mt-6 max-w-lg text-center">
-        <p className="text-brand-offwhite/50 text-sm leading-relaxed font-sans">
-          {companyConfig ? (
-            <>
-              Vous êtes salarié·e chez{' '}
-              <strong className="text-brand-offwhite">{companyConfig.companyName}</strong>.
-              En <strong className="text-brand-offwhite">10 minutes</strong>, traversez
-              4 situations réelles et apprenez à arbitrer.
-            </>
-          ) : (
-            <>
-              Vous êtes salarié·e dans une organisation qui vient d'adopter des
-              outils IA. En <strong className="text-brand-offwhite">10 minutes</strong>, vous
-              allez traverser 4 situations réelles et apprendre à arbitrer.
-            </>
-          )}
-        </p>
-      </div>
-
-      {/* Bouton */}
-      <button
-        onClick={onStart}
-        className="mt-10 px-8 py-4 rounded-xl bg-brand-blue hover:bg-brand-blue/80 active:scale-95 transition-all font-sans font-medium text-base text-white shadow-lg shadow-brand-blue/30"
-      >
-        Commencer →
+      <button onClick={onLogout} style={{ position: "absolute", top: 22, right: 28, background: "none", border: "none", color: "rgba(255,255,255,.35)", fontFamily: MONO, fontSize: 12, cursor: "pointer" }}>
+        Quitter
       </button>
 
-      <p className="mt-4 text-xs text-brand-offwhite/25 font-mono">~10 minutes · Usage individuel</p>
+      <div style={{ maxWidth: 520, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 2 }}>
 
+        {/* Badge module */}
+        {moduleTitle && (
+          <div style={{ marginBottom: 20, padding: "5px 14px", borderRadius: 20, background: "rgba(0,229,255,.12)", border: "1px solid rgba(0,229,255,.25)", color: C.cyan, fontFamily: MONO, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.cyan, display: "inline-block" }} />
+            {moduleTitle}
+          </div>
+        )}
+
+        {/* Titre */}
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 46, color: C.white, textAlign: "center", lineHeight: 1.15, letterSpacing: "-0.02em" }}>
+          L'IA, ça<br /><span style={{ color: C.signal }}>se contrôle.</span>
+        </div>
+
+        {/* Principe */}
+        <div style={{ marginTop: 28, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 16, padding: "18px 22px", textAlign: "center" }}>
+          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.cyan, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
+            Principe LHC · Limitless Human Control
+          </div>
+          <p style={{ color: "rgba(255,255,255,.65)", fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
+            Automatiser les tâches chronophages à faible valeur, garder l'humain
+            maître des décisions à fort enjeu, sans jamais exposer l'information sensible.
+          </p>
+        </div>
+
+        {/* Contexte */}
+        <p style={{ color: "rgba(255,255,255,.45)", fontSize: 13.5, textAlign: "center", marginTop: 20, lineHeight: 1.6 }}>
+          Bonjour <strong style={{ color: "rgba(255,255,255,.85)" }}>{prenom}</strong>.
+          En <strong style={{ color: "rgba(255,255,255,.85)" }}>{nbScenarios ? `${nbScenarios * 3} min` : '10 minutes'}</strong>, traversez{' '}
+          {nbScenarios ? <><strong style={{ color: "rgba(255,255,255,.85)" }}>{nbScenarios} scénario{nbScenarios > 1 ? 's' : ''}</strong> réels</> : '4 situations réelles'} et apprenez à arbitrer.
+        </p>
+
+        {/* Bouton */}
+        <div onClick={onStart} style={{ marginTop: 32, width: 240 }}>
+          <Btn kind="primary" size="lg" icon="play" full>Commencer</Btn>
+        </div>
+
+        <p style={{ marginTop: 14, fontSize: 11, color: "rgba(255,255,255,.2)", fontFamily: MONO }}>
+          Usage individuel · Résultats sauvegardés
+        </p>
+      </div>
     </div>
   )
 }

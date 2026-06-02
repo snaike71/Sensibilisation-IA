@@ -3,33 +3,6 @@ import { useApp } from '../../context/AppContext.jsx'
 import { apiUrl, API_HEADERS } from '../../utils/api.js'
 import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, Avatar, Kicker, H, Progress, Mark } from '../lhctrl-kit.jsx'
 
-// Modules par défaut (remplacés par ceux du backend si disponibles)
-const defaultModules = [
-  {
-    id: 'module-1',
-    titre: 'Anonymiser avant de prompter',
-    description: 'Apprenez à protéger les données sensibles avant tout usage d\'un outil IA.',
-    categorie: 'Données',
-    duree_min: 12,
-    statut: 'done',
-  },
-  {
-    id: 'module-2',
-    titre: 'Prompt & confidentialité',
-    description: 'Maîtrisez les bonnes pratiques de rédaction de prompts sans exposer d\'informations sensibles.',
-    categorie: 'Gouvernance',
-    duree_min: 10,
-    statut: 'current',
-  },
-  {
-    id: 'module-3',
-    titre: 'Arbitrage humain / IA',
-    description: 'Identifiez quand déléguer à l\'IA et quand garder la main sur les décisions.',
-    categorie: 'Éthique',
-    duree_min: 15,
-    statut: 'todo',
-  },
-]
 
 function getInitials(nom) {
   if (!nom) return '?'
@@ -136,8 +109,8 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   const labelsMaturite = ['Émergent', 'Intermédiaire', 'Avancé', 'Expert']
   const labelMaturite = labelsMaturite[niveau - 1] ?? 'Expert'
 
-  // Utiliser les modules assignés à l'équipe, sinon les modules par défaut
-  const baseModules = assignedModules.length > 0 ? assignedModules : defaultModules
+  // Uniquement les modules réellement assignés à l'équipe
+  const baseModules = assignedModules
 
   // Calcul dynamique de la progression réelle basée sur les sessions
   const completedModuleIds = new Set(sessions.map(s => s.module_id).filter(Boolean))
@@ -234,16 +207,24 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
               {finalModules.filter(m => m.statut === 'done').length} / {finalModules.length} terminés
             </span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {finalModules.map((mod, i) => (
-              <ModuleRow
-                key={mod.id}
-                idx={i + 1}
-                {...mod}
-                onStart={() => onStartModule(mod)}
-              />
-            ))}
-          </div>
+          {finalModules.length === 0 ? (
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 13, padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <Icon name="brain" size={32} color={C.inkMute} />
+              <div style={{ fontFamily: MONO, fontSize: 14, color: C.inkMute }}>Aucun module assigné pour le moment</div>
+              <div style={{ fontSize: 13, color: C.inkMute, fontFamily: SANS }}>Votre référent RH vous assignera bientôt un module de sensibilisation.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {finalModules.map((mod, i) => (
+                <ModuleRow
+                  key={mod.id}
+                  idx={i + 1}
+                  {...mod}
+                  onStart={() => onStartModule(mod)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Historique */}

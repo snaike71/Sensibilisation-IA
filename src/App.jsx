@@ -94,7 +94,7 @@ export default function App() {
   }
 
   if (phase === 'accroche') {
-    return <AccrocheScreen onStart={() => setPhase('quiz')} onLogout={handleLogout} />
+    return <AccrocheScreen onStart={() => setPhase('quiz')} onLogout={handleLogout} module={activeModule} />
   }
 
   if (phase === 'quiz') {
