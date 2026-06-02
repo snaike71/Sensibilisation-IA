@@ -85,6 +85,7 @@ function ModuleRow({ titre, categorie, duree_min, statut, idx, onStart }) {
 export default function ApprenantDashboard({ onStartModule, onLogout }) {
   const { collaborator, token } = useApp()
   const [sessions, setSessions] = useState([])
+  const [assignedModules, setAssignedModules] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -109,6 +110,16 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
     }
   }, [token, collaborator?.id])
 
+  // Charger les modules assignés à l'équipe du collaborateur
+  useEffect(() => {
+    if (collaborator?.team_id) {
+      fetch(apiUrl(`/api/modules/team/${collaborator.team_id}`), { headers: API_HEADERS })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => setAssignedModules(Array.isArray(data) ? data : []))
+        .catch(() => setAssignedModules([]))
+    }
+  }, [collaborator?.team_id])
+
   const totalXP = collaborator?.xp ?? 0
   const niveau = collaborator?.niveau ?? 1
   
@@ -125,20 +136,36 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   const labelsMaturite = ['Émergent', 'Intermédiaire', 'Avancé', 'Expert']
   const labelMaturite = labelsMaturite[niveau - 1] ?? 'Expert'
 
-  // Calcul dynamique des modules et de leur progression réelle
-  const modules = defaultModules.map((mod, index) => {
+  // Utiliser les modules assignés à l'équipe, sinon les modules par défaut
+  const baseModules = assignedModules.length > 0 ? assignedModules : defaultModules
+
+  // Calcul dynamique de la progression réelle basée sur les sessions
+  const completedModuleIds = new Set(sessions.map(s => s.module_id).filter(Boolean))
+  const modules = baseModules.map((mod, index) => {
     let statut = 'todo'
-    if (index < sessions.length) {
+    if (completedModuleIds.has(mod.id) || index < sessions.length) {
       statut = 'done'
-    } else if (index === sessions.length) {
+    } else if (index === sessions.filter(s => !completedModuleIds.has(s.module_id) || completedModuleIds.size === 0).length || index === sessions.length) {
       statut = 'current'
     }
+    // Premier module non terminé = current
     return { ...mod, statut }
   })
+  // Recalcul propre : done si session avec ce module_id existe, current le premier non-done
+  const propModules = baseModules.map((mod) => {
+    const done = completedModuleIds.has(mod.id)
+    return { ...mod, statut: done ? 'done' : null }
+  })
+  let firstCurrentSet = false
+  const finalModules = propModules.map((mod) => {
+    if (mod.statut === 'done') return mod
+    if (!firstCurrentSet) { firstCurrentSet = true; return { ...mod, statut: 'current' } }
+    return { ...mod, statut: 'todo' }
+  })
 
-  const modulesTermines = sessions.length
+  const modulesTermines = completedModuleIds.size || sessions.length
   const nbBadges = niveau >= 2 ? (niveau >= 3 ? 2 : 1) : 0
-  const serie = sessions.length // simplification : nb sessions = série
+  const serie = sessions.length
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: C.bg, color: C.ink, fontFamily: SANS }}>
@@ -204,11 +231,11 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <H size={19}>Mes modules assignés</H>
             <span style={{ fontFamily: MONO, fontSize: 12, color: C.inkMute }}>
-              {modules.filter(m => m.statut === 'done').length} / {modules.length} terminés
+              {finalModules.filter(m => m.statut === 'done').length} / {finalModules.length} terminés
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {modules.map((mod, i) => (
+            {finalModules.map((mod, i) => (
               <ModuleRow
                 key={mod.id}
                 idx={i + 1}

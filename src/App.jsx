@@ -25,6 +25,7 @@ export default function App() {
 
   const [score, setScore] = useState(0)
   const [total, setTotal] = useState(0)
+  const [activeModule, setActiveModule] = useState(null)
 
   function handleQuizFinish(finalScore, totalQuestions) {
     setScore(finalScore)
@@ -71,7 +72,7 @@ export default function App() {
   if (phase === 'apprenant-dashboard') {
     return (
       <ApprenantDashboard
-        onStartModule={() => setPhase('accroche')}
+        onStartModule={(mod) => { setActiveModule(mod ?? null); setPhase('accroche') }}
         onLogout={handleLogout}
       />
     )
@@ -97,7 +98,7 @@ export default function App() {
   }
 
   if (phase === 'quiz') {
-    return <Quiz onFinish={handleQuizFinish} />
+    return <Quiz module={activeModule} onFinish={handleQuizFinish} />
   }
 
   return <ScoreScreen score={score} total={total} onRestart={handleRestart} onGoToDashboard={() => setPhase('apprenant-dashboard')} />

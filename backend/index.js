@@ -148,6 +148,43 @@ app.post('/api/modules', auth, async (req, res) => {
   res.json(rows[0])
 })
 
+// PUT /api/modules/:id — assigner un module à une équipe
+app.put('/api/modules/:id', auth, async (req, res) => {
+  const { id } = req.params
+  const { equipes_ciblees, titre, description } = req.body
+  try {
+    const { rows } = await pool.query(
+      `UPDATE modules
+       SET equipes_ciblees = COALESCE($1, equipes_ciblees),
+           titre = COALESCE($2, titre),
+           description = COALESCE($3, description)
+       WHERE id = $4 AND org_id = $5 RETURNING *`,
+      [equipes_ciblees, titre, description, id, req.org.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Module non trouvé' })
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// GET /api/modules/team/:team_id — modules assignés à une équipe (public, pour les collaborateurs)
+app.get('/api/modules/team/:team_id', async (req, res) => {
+  const { team_id } = req.params
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, titre, code, description, categorie, niveau, duree_min, contenu, personnalise
+       FROM modules
+       WHERE equipes_ciblees = $1 AND statut = 'active'
+       ORDER BY created_at DESC`,
+      [team_id]
+    )
+    res.json(rows)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── Équipes ──────────────────────────────────────────────────────────────────
 
 // GET /api/teams

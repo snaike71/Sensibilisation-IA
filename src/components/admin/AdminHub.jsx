@@ -168,7 +168,7 @@ const catColors = {
   cyber:       { bg: '#ede9fe', fg: '#7c3aed' },
 }
 
-function ModuleCard({ code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
+function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
   const [showPreview, setShowPreview] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
   const [assignTeam, setAssignTeam] = useState('')
@@ -182,20 +182,18 @@ function ModuleCard({ code, title, desc, level, dur, team, contenu, teams, token
     if (!assignTeam) return
     setAssigning(true)
     try {
-      // Copier les situations dans le contexte partagé via /api/config
-      // et noter l'équipe cible dans la description du module
-      await fetch(apiUrl('/api/config'), {
+      // Trouver le module correspondant par son code pour avoir son ID
+      // Le code est passé via la prop `code`
+      const res = await fetch(apiUrl(`/api/modules/${moduleId}`), {
         method: 'PUT',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          company_name: title,
-          situations: scenarios,
-          equipe_ciblee: assignTeam,
-        }),
+        body: JSON.stringify({ equipes_ciblees: assignTeam }),
       })
-      setShowAssign(false)
-      setAssignTeam('')
-      if (onRefresh) onRefresh()
+      if (res.ok) {
+        setShowAssign(false)
+        setAssignTeam('')
+        if (onRefresh) onRefresh()
+      }
     } catch { /* silencieux */ } finally { setAssigning(false) }
   }
 
@@ -824,6 +822,7 @@ function ModulesView({ modules, teams, token, companyConfig, onModuleSaved }) {
         {modules.map((mod) => (
           <ModuleCard
             key={mod.id}
+            moduleId={mod.id}
             code={mod.code}
             title={mod.titre}
             desc={mod.description || "Module de sensibilisation à l'IA personnalisé."}

@@ -33,6 +33,7 @@ export function AppProvider({ children }) {
 
   const [companyConfig, setCompanyConfig] = useState(null)
   const [customSituations, setCustomSituations] = useState(null)
+  const [currentModuleId, setCurrentModuleId] = useState(null)
   
   const [collaborator, setCollaboratorState] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lhc_collaborator')) } catch { return null }
@@ -156,6 +157,7 @@ export function AppProvider({ children }) {
         body: JSON.stringify({
           collaborator_id: collaborator.id,
           org_id: collaborator.org_id,
+          module_id: currentModuleId ?? undefined,
           score,
           total_questions: totalQuestions,
           xp_gagne,
@@ -176,7 +178,7 @@ export function AppProvider({ children }) {
   }
 
   return (
-    <AppContext.Provider value={{ user, token, login, logout, companyConfig, customSituations, saveConfig, saveResult, collaborator, setCollaborator }}>
+    <AppContext.Provider value={{ user, token, login, logout, companyConfig, customSituations, saveConfig, saveResult, collaborator, setCollaborator, currentModuleId, setCurrentModuleId }}>
       {children}
     </AppContext.Provider>
   )

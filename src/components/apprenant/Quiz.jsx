@@ -102,10 +102,19 @@ function QuizOption({ letter, text, state, onClick, disabled }) {
   )
 }
 
-export default function Quiz({ onFinish }) {
-  const { customSituations } = useApp()
+export default function Quiz({ module, onFinish }) {
+  const { customSituations, setCurrentModuleId } = useApp()
   const { analyzeAnswer, analyzing } = useOllama()
-  const scenarios = normalizeScenarios(customSituations ?? defaultSituations)
+
+  // Priorité : contenu du module assigné > situations personnalisées > situations par défaut
+  const moduleScenarios = (() => {
+    if (!module?.contenu) return null
+    try { return JSON.parse(module.contenu) } catch { return null }
+  })()
+  const scenarios = normalizeScenarios(moduleScenarios ?? customSituations ?? defaultSituations)
+
+  // Mémoriser le module courant pour que ScoreScreen puisse l'inclure dans la session
+  useState(() => { if (setCurrentModuleId && module?.id) setCurrentModuleId(module.id) })
 
   const [scenarioIdx, setScenarioIdx] = useState(0)
   const [questionIdx, setQuestionIdx] = useState(0)
