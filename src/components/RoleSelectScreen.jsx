@@ -55,27 +55,29 @@ export default function RoleSelectScreen({ onAdmin, onApprenant, onLogout }) {
       justifyContent: "center",
       padding: "60px 24px"
     }}>
-      {/* Header avec déconnexion */}
-      <div style={{ position: "absolute", top: 24, right: 32, display: "flex", alignItems: "center", gap: 12 }}>
-        {user?.name && <span style={{ fontFamily: MONO, fontSize: 11.5, color: C.inkMute }}>{user.name}</span>}
-        <button
-          onClick={onLogout}
-          style={{ 
-            background: "none", 
-            border: "none", 
-            padding: 0, 
-            cursor: "pointer", 
-            fontFamily: MONO, 
-            fontSize: 11.5, 
-            color: C.inkMute,
-            transition: "color 0.2s"
-          }}
-          onMouseEnter={(e) => e.target.style.color = C.inkSoft}
-          onMouseLeave={(e) => e.target.style.color = C.inkMute}
-        >
-          Déconnexion
-        </button>
-      </div>
+      {/* Header avec déconnexion — uniquement si l'admin est connecté */}
+      {user && (
+        <div style={{ position: "absolute", top: 24, right: 32, display: "flex", alignItems: "center", gap: 12 }}>
+          {user.name && <span style={{ fontFamily: MONO, fontSize: 11.5, color: C.inkMute }}>{user.name}</span>}
+          <button
+            onClick={onLogout}
+            style={{ 
+              background: "none", 
+              border: "none", 
+              padding: 0, 
+              cursor: "pointer", 
+              fontFamily: MONO, 
+              fontSize: 11.5, 
+              color: C.inkMute,
+              transition: "color 0.2s"
+            }}
+            onMouseEnter={(e) => e.target.style.color = C.inkSoft}
+            onMouseLeave={(e) => e.target.style.color = C.inkMute}
+          >
+            Déconnexion
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%", maxWidth: 880 }}>
         <Logo size={44} />
