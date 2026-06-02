@@ -38,6 +38,8 @@ function auth(req, res, next) {
   }
 }
 
+app.get('/health', (_, res) => res.json({ ok: true }))
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 // POST /api/auth/register — onboarding admin (crée une organisation)
