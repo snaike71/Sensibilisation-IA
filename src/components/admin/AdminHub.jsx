@@ -302,18 +302,22 @@ const catColors = {
 }
 
 function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
-  const [showPreview, setShowPreview] = useState(false)
-  const [showAssign, setShowAssign] = useState(false)
-  const [assignTeam, setAssignTeam] = useState('')
+  const [activePanel, setActivePanel] = useState(null) // 'preview' | 'editTeam' | 'editContent' | 'delete'
+  const [assignTeam, setAssignTeam] = useState(team || '')
   const [assigning, setAssigning] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const scenarios = (() => {
+  const parsedScenarios = (() => {
     try { return contenu ? JSON.parse(contenu) : [] } catch { return [] }
   })()
 
-  const handleAssign = async () => {
+  // État mutable pour l'édition du contenu
+  const [editScenarios, setEditScenarios] = useState(parsedScenarios)
+
+  const toggle = (panel) => setActivePanel(p => p === panel ? null : panel)
+
+  const handleAssignTeam = async () => {
     if (!assignTeam) return
     setAssigning(true)
     try {
@@ -322,8 +326,21 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify({ equipes_ciblees: assignTeam }),
       })
-      if (res.ok) { setShowAssign(false); setAssignTeam(''); if (onRefresh) onRefresh() }
+      if (res.ok) { setActivePanel(null); if (onRefresh) onRefresh() }
     } catch { /* silencieux */ } finally { setAssigning(false) }
+  }
+
+  const handleSaveContent = async () => {
+    setSaving(true)
+    try {
+      await fetch(apiUrl(`/api/modules/${moduleId}`), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ contenu: JSON.stringify(editScenarios) }),
+      })
+      setActivePanel(null)
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -334,12 +351,23 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
       })
       if (onRefresh) onRefresh()
-    } catch { /* silencieux */ } finally { setDeleting(false); setConfirmDelete(false) }
+    } catch { /* silencieux */ } finally { setDeleting(false); setActivePanel(null) }
   }
+
+  const updateQuestion = (si, qi, field, val) => {
+    setEditScenarios(prev => prev.map((s, i) => i !== si ? s : {
+      ...s,
+      questions: s.questions.map((q, j) => j !== qi ? q : { ...q, [field]: val })
+    }))
+  }
+
+  const teamName = (teams || []).find(t => t.id === team || t.nom === team)?.nom || team
+
+  const subStyle = { background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "18px 20px" }
 
   return (
     <div>
-      <Card pad={20} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
+      <Card pad={20} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between", borderRadius: activePanel ? "14px 14px 0 0" : 14 }}>
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -357,36 +385,46 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
         </div>
 
         <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
-            <Chip>{level}</Chip><Chip icon="play">{dur}</Chip><Chip tone="cyan" icon="users">{team}</Chip>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+            <Chip>{level}</Chip>
+            <Chip icon="play">{dur}</Chip>
+            {teamName
+              ? <Chip tone="cyan" icon="users">{teamName}</Chip>
+              : <span style={{ fontSize: 11.5, color: C.inkMute, fontFamily: SANS, alignSelf: "center" }}>Aucune équipe assignée</span>
+            }
           </div>
+          {/* Ligne 1 : Aperçu + Modifier contenu */}
+          <div style={{ display: "flex", gap: 9, marginBottom: 7 }}>
+            <div onClick={() => toggle('preview')} style={{ flex: 1 }}>
+              <Btn kind="ghost" size="sm" full>{activePanel === 'preview' ? 'Masquer aperçu' : 'Aperçu'}</Btn>
+            </div>
+            <div onClick={() => { toggle('editContent'); setEditScenarios(parsedScenarios) }} style={{ flex: 1 }}>
+              <Btn kind="ghost" size="sm" full>{activePanel === 'editContent' ? 'Annuler' : 'Modifier contenu'}</Btn>
+            </div>
+          </div>
+          {/* Ligne 2 : Modifier équipe + Supprimer */}
           <div style={{ display: "flex", gap: 9 }}>
-            <div onClick={() => { setShowPreview(v => !v); setShowAssign(false); setConfirmDelete(false) }} style={{ flex: 1 }}>
-              <Btn kind="ghost" size="sm" full>{showPreview ? 'Masquer' : 'Aperçu'}</Btn>
+            <div onClick={() => toggle('editTeam')} style={{ flex: 1 }}>
+              <Btn kind="primary" size="sm" icon="users" full>{activePanel === 'editTeam' ? 'Annuler' : teamName ? 'Modifier équipe' : 'Assigner équipe'}</Btn>
             </div>
-            <div onClick={() => { setShowAssign(v => !v); setShowPreview(false); setConfirmDelete(false) }} style={{ flex: 1 }}>
-              <Btn kind="primary" size="sm" icon="send" full>Assigner</Btn>
+            <div onClick={() => toggle('delete')} style={{ flex: 1 }}>
+              <Btn kind="ghost" size="sm" full><span style={{ color: C.bad, fontSize: 12 }}>Supprimer</span></Btn>
             </div>
-          </div>
-          <div onClick={() => { setConfirmDelete(v => !v); setShowPreview(false); setShowAssign(false) }} style={{ marginTop: 6 }}>
-            <Btn kind="ghost" size="sm" full><span style={{ color: C.bad, fontSize: 12 }}>Supprimer ce module</span></Btn>
           </div>
         </div>
       </Card>
 
-      {/* Aperçu des scénarios */}
-      {showPreview && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 20px" }}>
-          {scenarios.length === 0 ? (
-            <div style={{ color: C.inkMute, fontSize: 13, fontFamily: SANS }}>Aucun contenu disponible pour ce module.</div>
-          ) : scenarios.map((s, si) => {
+      {/* Aperçu */}
+      {activePanel === 'preview' && (
+        <div style={subStyle}>
+          {parsedScenarios.length === 0 ? (
+            <div style={{ color: C.inkMute, fontSize: 13, fontFamily: SANS }}>Aucun contenu disponible.</div>
+          ) : parsedScenarios.map((s, si) => {
             const col = catColors[s.categorie] || { bg: C.bg, fg: C.inkSoft }
             return (
               <div key={si} style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ padding: "3px 9px", borderRadius: 6, background: col.bg, color: col.fg, fontFamily: MONO, fontWeight: 700, fontSize: 10 }}>
-                    {s.categorie?.toUpperCase() || 'THÈME'}
-                  </span>
+                  <span style={{ padding: "3px 9px", borderRadius: 6, background: col.bg, color: col.fg, fontFamily: MONO, fontWeight: 700, fontSize: 10 }}>{s.categorie?.toUpperCase() || 'THÈME'}</span>
                   <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>{s.titre}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 12, borderLeft: `3px solid ${col.bg}` }}>
@@ -403,30 +441,95 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
         </div>
       )}
 
-      {/* Assigner à une équipe */}
-      {showAssign && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Assigner ce module à une équipe</div>
+      {/* Modifier équipe */}
+      {activePanel === 'editTeam' && (
+        <div style={{ ...subStyle, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>
+            {teamName ? `Équipe actuelle : ${teamName}` : 'Assigner à une équipe'}
+          </div>
           <select value={assignTeam} onChange={e => setAssignTeam(e.target.value)}
             style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.bg, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: assignTeam ? C.ink : C.inkMute, outline: "none" }}>
-            <option value="">Sélectionner une équipe…</option>
+            <option value="">Aucune équipe</option>
             {(teams || []).map(t => <option key={t.id} value={t.id}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
           </select>
           <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
-            <div onClick={() => setShowAssign(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
-            <div onClick={handleAssign} style={{ opacity: !assignTeam || assigning ? 0.4 : 1, pointerEvents: !assignTeam || assigning ? "none" : "auto" }}>
-              <Btn kind="primary" size="sm" icon="send">{assigning ? 'Assignation…' : 'Confirmer'}</Btn>
+            <div onClick={() => setActivePanel(null)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleAssignTeam} style={{ opacity: assigning ? 0.5 : 1, pointerEvents: assigning ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm" icon="users">{assigning ? '…' : 'Confirmer'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modifier le contenu (thèmes + questions) */}
+      {activePanel === 'editContent' && (
+        <div style={{ ...subStyle, display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Modifier les thèmes et questions</div>
+          {editScenarios.map((s, si) => {
+            const col = catColors[s.categorie] || { bg: C.bg, fg: C.inkSoft }
+            return (
+              <div key={si} style={{ border: `1px solid ${C.border}`, borderRadius: 11, overflow: "hidden" }}>
+                {/* Header du thème */}
+                <div style={{ background: col.bg, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: col.fg }}>{s.categorie?.toUpperCase()}</span>
+                  <input value={s.titre} onChange={e => setEditScenarios(prev => prev.map((sc, i) => i !== si ? sc : { ...sc, titre: e.target.value }))}
+                    style={{ flex: 1, border: "none", background: "transparent", fontFamily: MONO, fontWeight: 700, fontSize: 13, color: col.fg, outline: "none" }} />
+                </div>
+                {/* Questions */}
+                <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {(s.questions || []).map((q, qi) => (
+                    <div key={qi} style={{ background: C.bg, borderRadius: 8, padding: "10px 12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+                        <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: col.fg, background: col.bg, padding: "2px 7px", borderRadius: 5 }}>Q{qi + 1} {q.type?.toUpperCase()}</span>
+                      </div>
+                      <textarea value={q.texte} onChange={e => updateQuestion(si, qi, 'texte', e.target.value)} rows={2}
+                        style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 7, background: C.white, padding: "8px 10px", fontFamily: SANS, fontSize: 13, color: C.ink, outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+                      {q.type === 'mcq' && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 7 }}>
+                          {(q.options || []).map((opt, oi) => (
+                            <div key={oi} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                              <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: q.bonneReponse === String.fromCharCode(65 + oi) ? C.ok : C.inkMute, width: 16 }}>{String.fromCharCode(65 + oi)}</span>
+                              <input value={opt} onChange={e => {
+                                const newOpts = [...(q.options || [])]
+                                newOpts[oi] = e.target.value
+                                updateQuestion(si, qi, 'options', newOpts)
+                              }} style={{ flex: 1, height: 34, border: `1px solid ${C.border}`, borderRadius: 7, padding: "0 10px", fontFamily: SANS, fontSize: 12.5, color: C.ink, outline: "none", background: C.white }} />
+                              <div onClick={() => updateQuestion(si, qi, 'bonneReponse', String.fromCharCode(65 + oi))} style={{ cursor: "pointer", width: 24, height: 24, borderRadius: 6, background: q.bonneReponse === String.fromCharCode(65 + oi) ? C.ok : C.bg, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                {q.bonneReponse === String.fromCharCode(65 + oi) && <Icon name="check" size={12} color={C.white} />}
+                              </div>
+                            </div>
+                          ))}
+                          <div style={{ fontSize: 11, color: C.inkMute, fontFamily: SANS }}>Cliquez sur le carré vert pour marquer la bonne réponse.</div>
+                        </div>
+                      )}
+                      {q.type === 'free' && (
+                        <div style={{ marginTop: 7 }}>
+                          <div style={{ fontSize: 11, color: C.inkMute, fontFamily: MONO, marginBottom: 4 }}>RÉPONSE MODÈLE</div>
+                          <textarea value={q.modelAnswer || ''} onChange={e => updateQuestion(si, qi, 'modelAnswer', e.target.value)} rows={2}
+                            style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 7, background: C.white, padding: "8px 10px", fontFamily: SANS, fontSize: 12.5, color: C.inkSoft, outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+          <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
+            <div onClick={() => setActivePanel(null)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleSaveContent} style={{ opacity: saving ? 0.5 : 1, pointerEvents: saving ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm">{saving ? 'Enregistrement…' : 'Enregistrer les modifications'}</Btn>
             </div>
           </div>
         </div>
       )}
 
       {/* Confirmer suppression */}
-      {confirmDelete && (
+      {activePanel === 'delete' && (
         <div style={{ background: C.badBg, border: `1px solid ${C.bad}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span style={{ fontFamily: SANS, fontSize: 13, color: C.bad }}>Supprimer définitivement ce module ?</span>
           <div style={{ display: "flex", gap: 9 }}>
-            <div onClick={() => setConfirmDelete(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={() => setActivePanel(null)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
             <div onClick={handleDelete} style={{ opacity: deleting ? 0.5 : 1, pointerEvents: deleting ? "none" : "auto" }}>
               <Btn kind="primary" size="sm">{deleting ? '…' : 'Confirmer'}</Btn>
             </div>
@@ -696,6 +799,7 @@ const AI_TOOLS = ['ChatGPT', 'Claude', 'Gemini', 'Copilot', 'Mistral', 'Notion A
 function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
+  const teamsOptions = teams || []
   const [saving, setSaving] = useState(false)
 
   const handleAdd = async (e) => {
@@ -736,8 +840,16 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
             </Field>
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <Field label="Équipe concernée">
-                  <Input placeholder="Ex : RH, Commercial…" value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})} />
+                <Field label="Équipe concernée" hint={teamsOptions.length === 0 ? "Créez d'abord une équipe dans l'onglet Équipes." : ""}>
+                  {teamsOptions.length > 0 ? (
+                    <select value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})}
+                      style={{ width: "100%", height: 44, border: `1px solid ${draft.equipe ? C.inkSoft : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: draft.equipe ? C.ink : C.inkMute, outline: "none" }}>
+                      <option value="">Sélectionner une équipe…</option>
+                      {teamsOptions.map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
+                    </select>
+                  ) : (
+                    <Input placeholder="Ex : RH, Commercial…" value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})} />
+                  )}
                 </Field>
               </div>
               <div style={{ flex: 1 }}>
@@ -908,10 +1020,10 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
 
         {/* Sélecteur de cas d'usage */}
         {!prefillUsecase && (
-          <Field label="Cas d'usage ciblé" hint="Choisissez le cas d'usage pour lequel générer ce module de formation.">
+          <Field label="Cas d'usage ciblé (optionnel)" hint="Sans cas d'usage, l'IA génère un module de sensibilisation générale pour l'organisation.">
             <select value={selectedUcId} onChange={e => setSelectedUcId(e.target.value)}
               style={{ width: "100%", height: 44, border: `1px solid ${selectedUcId ? C.signal : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: selectedUcId ? C.ink : C.inkMute, outline: "none" }}>
-              <option value="">Aucun — module générique</option>
+              <option value="">Aucun — sensibilisation générale à l'IA</option>
               {(usecases || []).map(uc => (
                 <option key={uc.id} value={uc.id}>
                   {uc.intitule} {uc.niveau_risque ? `(${uc.niveau_risque})` : ''} {uc.equipe ? `— ${uc.equipe}` : ''}
