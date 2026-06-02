@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
+import { useOllama } from '../../hooks/useOllama.js'
 import { apiUrl, API_HEADERS } from '../../utils/api.js'
+import { extractPdfText } from '../../utils/pdfExtract.js'
 import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, RiskBadge, Mark } from '../lhctrl-kit.jsx'
 
 // ─── Header UI Atom ───────────────────────────────────────────────────────────
@@ -449,34 +451,108 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
 
 // ─── UseCases View ────────────────────────────────────────────────────────────
 
-function UseCasesView({ usecases, onGenerateModule }) {
+const RISK_LEVELS = ['Faible', 'Modéré', 'Élevé']
+const AI_TOOLS = ['ChatGPT', 'Claude', 'Gemini', 'Copilot', 'Mistral', 'Notion AI', 'Autre']
+
+function UseCasesView({ usecases, onGenerateModule, token, onRefresh }) {
+  const [showForm, setShowForm] = useState(false)
+  const [draft, setDraft] = useState({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
+  const [saving, setSaving] = useState(false)
+
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    if (!draft.intitule.trim()) return
+    setSaving(true)
+    try {
+      await fetch(apiUrl('/api/usecases'), {
+        method: 'POST',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify(draft),
+      })
+      setDraft({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
+      setShowForm(false)
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setSaving(false) }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <PageHead 
-        title="Cas d'usage IA" 
-        sub={`${usecases.length} usages identifiés — triés par niveau de risque`}
-        actions={<><Btn kind="ghost" icon="search">Filtrer</Btn><Btn kind="primary" icon="plus">Ajouter un cas</Btn></>} 
+      <PageHead
+        title="Cas d'usage IA"
+        sub={`${usecases.length} usage${usecases.length > 1 ? 's' : ''} identifié${usecases.length > 1 ? 's' : ''} — triés par niveau de risque`}
+        actions={
+          <div onClick={() => setShowForm(v => !v)}>
+            <Btn kind="primary" icon={showForm ? "x" : "plus"}>{showForm ? 'Annuler' : 'Ajouter un cas'}</Btn>
+          </div>
+        }
       />
 
-      {usecases.length === 0 ? (
+      {/* Formulaire d'ajout */}
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: C.ink }}>Nouveau cas d'usage</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <Field label="Intitulé du cas d'usage">
+              <Input placeholder="Ex : Analyse de CV via IA" value={draft.intitule} onChange={e => setDraft({...draft, intitule: e.target.value})} />
+            </Field>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <Field label="Équipe concernée">
+                  <Input placeholder="Ex : RH, Commercial…" value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})} />
+                </Field>
+              </div>
+              <div style={{ flex: 1 }}>
+                <Field label="Outil IA utilisé">
+                  <select value={draft.outil_ia} onChange={e => setDraft({...draft, outil_ia: e.target.value})}
+                    style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", appearance: "none" }}>
+                    {AI_TOOLS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </Field>
+              </div>
+            </div>
+            <Field label="Niveau de risque">
+              <div style={{ display: "flex", gap: 8 }}>
+                {RISK_LEVELS.map(r => (
+                  <div key={r} onClick={() => setDraft({...draft, niveau_risque: r})} style={{ cursor: "pointer" }}>
+                    <Chip sel={draft.niveau_risque === r}>{r}</Chip>
+                  </div>
+                ))}
+              </div>
+            </Field>
+            <Field label="Description (optionnel)">
+              <textarea value={draft.description} onChange={e => setDraft({...draft, description: e.target.value})}
+                placeholder="Décrivez le contexte d'usage…" rows={2}
+                style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "10px 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", resize: "none", boxSizing: "border-box" }} />
+            </Field>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button type="submit" style={{ background: "none", border: "none", padding: 0, cursor: saving ? "not-allowed" : "pointer" }} disabled={saving}>
+              <Btn kind="primary" size="sm">{saving ? 'Enregistrement…' : 'Ajouter ce cas'}</Btn>
+            </button>
+          </div>
+        </form>
+      )}
+
+      {usecases.length === 0 && !showForm ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 48, background: C.white, border: `1px solid ${C.border}`, borderRadius: 14 }}>
           <span style={{ fontSize: 40 }}>💡</span>
           <div style={{ fontFamily: MONO, fontSize: 14, color: C.inkMute }}>Aucun cas d'usage déclaré</div>
+          <div onClick={() => setShowForm(true)}><Btn kind="primary" size="sm">Déclarer le premier cas</Btn></div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {usecases.map((uc) => {
             const risks = uc.risques || (uc.niveau_risque === 'Élevé' ? ["Biais", "RGPD", "Discrimination"] : ["Fuite de données", "Confidentialité"])
             return (
-              <UseCaseCard 
-                key={uc.id} 
+              <UseCaseCard
+                key={uc.id}
                 title={uc.intitule}
                 risk={uc.niveau_risque}
                 desc={uc.description || "Cas d'usage identifié dans l'organisation."}
-                team={uc.equipe}
-                tool={uc.outil || "ChatGPT"}
+                team={uc.equipe || "Toutes équipes"}
+                tool={uc.outil_ia || uc.outil || "ChatGPT"}
                 risks={risks}
-                reco={uc.recommandation}
+                reco={uc.recommandation || "Sensibilisez l'équipe aux risques liés à cet usage IA."}
                 onGenerate={() => onGenerateModule(uc)}
               />
             )
@@ -487,24 +563,185 @@ function UseCasesView({ usecases, onGenerateModule }) {
   )
 }
 
+// ─── Generate Module Panel (inline dans Modules) ──────────────────────────────
+
+function GenerateModulePanel({ token, companyConfig, onSaved, onCancel }) {
+  const { saveConfig } = useApp()
+  const { generateSituations, loading, error } = useOllama()
+
+  const [form, setForm] = useState({
+    companyName: companyConfig?.companyName || '',
+    sector: companyConfig?.sector || '',
+    size: companyConfig?.size || '',
+    tools: companyConfig?.tools || '',
+    context: '',
+    count: 2,
+    questionsPerScenario: 3,
+  })
+  const [pdfText, setPdfText] = useState('')
+  const [pdfName, setPdfName] = useState('')
+  const [extracting, setExtracting] = useState(false)
+  const [genProgress, setGenProgress] = useState(null)
+  const [genError, setGenError] = useState(null)
+
+  async function handlePdf(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setExtracting(true)
+    try {
+      const text = await extractPdfText(file)
+      setPdfText(text)
+      setPdfName(file.name)
+    } catch { setPdfText('') } finally { setExtracting(false) }
+  }
+
+  async function handleGenerate(e) {
+    e.preventDefault()
+    setGenError(null)
+    const config = { ...form, documentContext: pdfText ? pdfText.slice(0, 6000) : undefined }
+    setGenProgress({ current: 0, total: form.count })
+    const situations = await generateSituations(config, form.count, form.questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }))
+    setGenProgress(null)
+    if (!situations) { setGenError(error || 'Génération échouée'); return }
+
+    // Sauvegarder la config + situations dans le contexte ET en base
+    await saveConfig(form, situations)
+
+    // Créer un module en base avec le contenu généré
+    try {
+      await fetch(apiUrl('/api/modules'), {
+        method: 'POST',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          titre: `Sensibilisation IA — ${form.companyName || 'Organisation'}`,
+          description: `Module personnalisé · ${form.count} thème${form.count > 1 ? 's' : ''} · ${form.questionsPerScenario} questions/thème`,
+          categorie: form.sector || 'Fondamentaux',
+          niveau: 'intermediate',
+          duree_min: form.count * form.questionsPerScenario * 2,
+          personnalise: true,
+          contenu: JSON.stringify(situations),
+        }),
+      })
+    } catch { /* silencieux, situations déjà sauvées en contexte */ }
+
+    if (onSaved) onSaved()
+  }
+
+  const numInput = (label, key, min, max) => (
+    <Field label={label}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button type="button" onClick={() => setForm(f => ({...f, [key]: Math.max(min, f[key]-1)}))}
+          style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>−</button>
+        <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, color: C.ink, minWidth: 28, textAlign: "center" }}>{form[key]}</span>
+        <button type="button" onClick={() => setForm(f => ({...f, [key]: Math.min(max, f[key]+1)}))}
+          style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>+</button>
+      </div>
+    </Field>
+  )
+
+  return (
+    <Card pad={26}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 17, color: C.ink }}>Générer un module IA</div>
+          <div style={{ fontSize: 12.5, color: C.inkMute, marginTop: 3, fontFamily: SANS }}>L'IA va créer des scénarios quiz personnalisés pour vos équipes.</div>
+        </div>
+        <div onClick={onCancel}><Btn kind="ghost" size="sm" icon="x">Annuler</Btn></div>
+      </div>
+
+      <form onSubmit={handleGenerate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <Field label="Entreprise">
+              <Input placeholder="Nom de l'organisation" value={form.companyName} onChange={e => setForm({...form, companyName: e.target.value})} />
+            </Field>
+          </div>
+          <div style={{ flex: 1 }}>
+            <Field label="Secteur">
+              <Input placeholder="Finance, RH, Tech…" value={form.sector} onChange={e => setForm({...form, sector: e.target.value})} />
+            </Field>
+          </div>
+        </div>
+
+        <Field label="Outils IA utilisés">
+          <Input placeholder="ChatGPT, Copilot, Gemini…" value={form.tools} onChange={e => setForm({...form, tools: e.target.value})} />
+        </Field>
+
+        <Field label="Contexte supplémentaire (optionnel)">
+          <Input placeholder="Ex : equipes commerciales terrain, sensibilisation RGPD…" value={form.context} onChange={e => setForm({...form, context: e.target.value})} />
+        </Field>
+
+        <div style={{ display: "flex", gap: 24 }}>
+          {numInput("Nombre de thèmes", "count", 1, 5)}
+          {numInput("Questions / thème", "questionsPerScenario", 1, 10)}
+        </div>
+
+        {/* PDF */}
+        <Field label="Document de contexte (PDF, optionnel)" hint="Le contenu du PDF alimente la génération des scénarios.">
+          <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", border: `1px dashed ${C.border}`, borderRadius: 9, cursor: "pointer", background: pdfName ? C.cyan : C.bg }}>
+            <Icon name="doc" size={16} color={pdfName ? C.night : C.inkMute} />
+            <span style={{ fontFamily: SANS, fontSize: 13, color: pdfName ? C.night : C.inkMute }}>
+              {extracting ? 'Lecture du PDF…' : pdfName ? `✓ ${pdfName}` : 'Choisir un PDF…'}
+            </span>
+            <input type="file" accept=".pdf" onChange={handlePdf} style={{ display: "none" }} />
+          </label>
+        </Field>
+
+        {(genError || error) && (
+          <div style={{ padding: "10px 14px", borderRadius: 9, background: C.badBg, border: `1px solid ${C.bad}`, color: C.bad, fontSize: 12.5, fontFamily: SANS }}>
+            {genError || error}
+          </div>
+        )}
+
+        {genProgress && (
+          <div style={{ padding: "12px 16px", borderRadius: 9, background: C.signalSoft, border: `1px solid ${C.signal}`, fontFamily: MONO, fontSize: 12, color: C.signal }}>
+            Génération thème {genProgress.current}/{genProgress.total}…
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} style={{ background: "none", border: "none", padding: 0, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+          <Btn kind="primary" size="lg" icon="brain" full>
+            {loading ? `Génération en cours…` : `Générer ${form.count} thème${form.count > 1 ? 's' : ''} (${form.count * form.questionsPerScenario} questions)`}
+          </Btn>
+        </button>
+      </form>
+    </Card>
+  )
+}
+
 // ─── Modules View ─────────────────────────────────────────────────────────────
 
-function ModulesView({ modules, triggerGenerate }) {
+function ModulesView({ modules, token, companyConfig, onModuleSaved }) {
+  const [showGenerate, setShowGenerate] = useState(false)
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <PageHead 
-        title="Modules" 
-        sub={`${modules.length} modules disponibles pour l'organisation`}
-        actions={<><Btn kind="ghost" icon="search">Rechercher</Btn><div onClick={triggerGenerate}><Btn kind="primary" icon="bolt">Générer un module</Btn></div></>} 
+      <PageHead
+        title="Modules"
+        sub={`${modules.length} module${modules.length > 1 ? 's' : ''} disponible${modules.length > 1 ? 's' : ''} pour l'organisation`}
+        actions={
+          <div onClick={() => setShowGenerate(v => !v)}>
+            <Btn kind="primary" icon={showGenerate ? "x" : "bolt"}>{showGenerate ? 'Annuler' : 'Générer un module'}</Btn>
+          </div>
+        }
       />
+
+      {showGenerate && (
+        <GenerateModulePanel
+          token={token}
+          companyConfig={companyConfig}
+          onSaved={() => { setShowGenerate(false); if (onModuleSaved) onModuleSaved() }}
+          onCancel={() => setShowGenerate(false)}
+        />
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
         {modules.map((mod) => (
-          <ModuleCard 
-            key={mod.id} 
+          <ModuleCard
+            key={mod.id}
             code={mod.code}
             title={mod.titre}
-            desc={mod.description || (mod.code === 'MOD-01' ? "Réflexes pour ne jamais exposer de données sensibles dans un outil IA externe." : mod.code === 'MOD-02' ? "Cadre légal et garde-fous du tri de candidatures par IA." : "Vérifier et sourcer les réponses générées avant de les diffuser.")}
+            desc={mod.description || "Module de sensibilisation à l'IA personnalisé."}
             level={mod.niveau}
             dur={`${mod.duree_min} min`}
             team={mod.categorie}
@@ -512,18 +749,19 @@ function ModulesView({ modules, triggerGenerate }) {
           />
         ))}
 
-        {/* Generate card */}
-        <div 
-          onClick={triggerGenerate}
-          style={{ border: `2px dashed ${C.border}`, borderRadius: 14, padding: 20, display: "flex",
-            flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minHeight: 200, cursor: "pointer" }}
-        >
-          <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon name="plus" size={22} color={C.night} />
+        {!showGenerate && (
+          <div
+            onClick={() => setShowGenerate(true)}
+            style={{ border: `2px dashed ${C.border}`, borderRadius: 14, padding: 20, display: "flex",
+              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minHeight: 200, cursor: "pointer" }}
+          >
+            <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Icon name="plus" size={22} color={C.night} />
+            </div>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 14, color: C.ink }}>Générer un nouveau module</div>
+            <div style={{ fontSize: 12.5, color: C.inkMute, textAlign: "center", maxWidth: 240, fontFamily: SANS }}>L'IA crée des scénarios quiz à partir du profil de votre organisation.</div>
           </div>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 14, color: C.ink }}>Générer un nouveau module</div>
-          <div style={{ fontSize: 12.5, color: C.inkMute, textAlign: "center", maxWidth: 240, fontFamily: SANS }}>À partir d'un cas d'usage ou d'un thème libre.</div>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -735,15 +973,19 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           />
         )}
         {activeTab === 'usecases' && (
-          <UseCasesView 
-            usecases={usecases} 
-            onGenerateModule={handleGenerateModule} 
+          <UseCasesView
+            usecases={usecases}
+            onGenerateModule={handleGenerateModule}
+            token={token}
+            onRefresh={fetchData}
           />
         )}
         {activeTab === 'modules' && (
-          <ModulesView 
-            modules={modules} 
-            triggerGenerate={triggerGenerateFreeModule} 
+          <ModulesView
+            modules={modules}
+            token={token}
+            companyConfig={companyConfig}
+            onModuleSaved={fetchData}
           />
         )}
         {activeTab === 'teams' && (
