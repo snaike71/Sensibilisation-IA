@@ -1,5 +1,5 @@
 import { useState, Fragment } from 'react'
-import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, RiskBadge, Kicker, H } from '../lhctrl-kit.jsx'
+import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, RiskBadge } from '../lhctrl-kit.jsx'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
