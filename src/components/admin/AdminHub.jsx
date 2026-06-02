@@ -161,40 +161,125 @@ function UseCaseCard({ title, risk, desc, team, tool, risks, reco, onGenerate })
 
 // ─── Module Card ──────────────────────────────────────────────────────────────
 
-function ModuleCard({ code, title, desc, level, dur, team, onAssign }) {
+const catColors = {
+  possibilite: { bg: '#e0f2fe', fg: '#0369a1' },
+  danger:      { bg: '#fee2e2', fg: '#dc2626' },
+  limite:      { bg: '#fef3c7', fg: '#d97706' },
+  cyber:       { bg: '#ede9fe', fg: '#7c3aed' },
+}
+
+function ModuleCard({ code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
+  const [showPreview, setShowPreview] = useState(false)
+  const [showAssign, setShowAssign] = useState(false)
+  const [assignTeam, setAssignTeam] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  const scenarios = (() => {
+    try { return contenu ? JSON.parse(contenu) : [] } catch { return [] }
+  })()
+
+  const handleAssign = async () => {
+    if (!assignTeam) return
+    setAssigning(true)
+    try {
+      // Copier les situations dans le contexte partagé via /api/config
+      // et noter l'équipe cible dans la description du module
+      await fetch(apiUrl('/api/config'), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          company_name: title,
+          situations: scenarios,
+          equipe_ciblee: assignTeam,
+        }),
+      })
+      setShowAssign(false)
+      setAssignTeam('')
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setAssigning(false) }
+  }
+
   return (
-    <Card pad={20} hover style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 11, background: C.signalSoft,
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="brain" size={21} color={C.signal} />
-            </div>
-            <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.inkMute }}>{code}</div>
-          </div>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 6,
-            background: C.signal, color: C.white, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
-            <Icon name="bolt" size={11} color={C.white} /> PERSONNALISÉ
-          </span>
-        </div>
+    <div>
+      <Card pad={20} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
         <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 11, background: C.signalSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="brain" size={21} color={C.signal} />
+              </div>
+              <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.inkMute }}>{code}</div>
+            </div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 6, background: C.signal, color: C.white, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
+              <Icon name="bolt" size={11} color={C.white} /> PERSONNALISÉ
+            </span>
+          </div>
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 17, color: C.ink }}>{title}</div>
           <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 7, lineHeight: 1.5, fontFamily: SANS }}>{desc}</div>
         </div>
-      </div>
-      <div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
-          <Chip>{level}</Chip><Chip icon="play">{dur}</Chip><Chip tone="cyan" icon="users">{team}</Chip>
-        </div>
-        <div style={{ display: "flex", gap: 9 }}>
-          <Btn kind="ghost" size="sm" full>Aperçu</Btn>
-          <div onClick={onAssign} style={{ flex: 1 }}>
-            <Btn kind="primary" size="sm" icon="send" full>Assigner</Btn>
+
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
+            <Chip>{level}</Chip><Chip icon="play">{dur}</Chip><Chip tone="cyan" icon="users">{team}</Chip>
+          </div>
+          <div style={{ display: "flex", gap: 9 }}>
+            <div onClick={() => { setShowPreview(v => !v); setShowAssign(false) }} style={{ flex: 1 }}>
+              <Btn kind="ghost" size="sm" full>{showPreview ? 'Masquer' : 'Aperçu'}</Btn>
+            </div>
+            <div onClick={() => { setShowAssign(v => !v); setShowPreview(false) }} style={{ flex: 1 }}>
+              <Btn kind="primary" size="sm" icon="send" full>Assigner</Btn>
+            </div>
           </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      {/* Aperçu des scénarios */}
+      {showPreview && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 20px" }}>
+          {scenarios.length === 0 ? (
+            <div style={{ color: C.inkMute, fontSize: 13, fontFamily: SANS }}>Aucun contenu disponible pour ce module.</div>
+          ) : scenarios.map((s, si) => {
+            const col = catColors[s.categorie] || { bg: C.bg, fg: C.inkSoft }
+            return (
+              <div key={si} style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ padding: "3px 9px", borderRadius: 6, background: col.bg, color: col.fg, fontFamily: MONO, fontWeight: 700, fontSize: 10 }}>
+                    {s.categorie?.toUpperCase() || 'THÈME'}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>{s.titre}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 12, borderLeft: `3px solid ${col.bg}` }}>
+                  {(s.questions || []).map((q, qi) => (
+                    <div key={qi} style={{ fontSize: 12.5, color: C.inkSoft, fontFamily: SANS }}>
+                      <span style={{ fontFamily: MONO, fontWeight: 700, fontSize: 10, color: col.fg, marginRight: 6 }}>Q{qi + 1} {q.type?.toUpperCase()}</span>
+                      {q.texte}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Assigner à une équipe */}
+      {showAssign && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Assigner ce module à une équipe</div>
+          <select value={assignTeam} onChange={e => setAssignTeam(e.target.value)}
+            style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.bg, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: assignTeam ? C.ink : C.inkMute, outline: "none" }}>
+            <option value="">Sélectionner une équipe…</option>
+            {(teams || []).map(t => <option key={t.id} value={t.id}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
+          </select>
+          <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
+            <div onClick={() => setShowAssign(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleAssign} style={{ opacity: !assignTeam || assigning ? 0.4 : 1, pointerEvents: !assignTeam || assigning ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm" icon="send">{assigning ? 'Assignation…' : 'Confirmer'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -711,7 +796,7 @@ function GenerateModulePanel({ token, companyConfig, onSaved, onCancel }) {
 
 // ─── Modules View ─────────────────────────────────────────────────────────────
 
-function ModulesView({ modules, token, companyConfig, onModuleSaved }) {
+function ModulesView({ modules, teams, token, companyConfig, onModuleSaved }) {
   const [showGenerate, setShowGenerate] = useState(false)
 
   return (
@@ -745,7 +830,10 @@ function ModulesView({ modules, token, companyConfig, onModuleSaved }) {
             level={mod.niveau}
             dur={`${mod.duree_min} min`}
             team={mod.categorie}
-            onAssign={() => alert(`Module ${mod.code} assigné !`)}
+            contenu={mod.contenu}
+            teams={teams}
+            token={token}
+            onRefresh={onModuleSaved}
           />
         ))}
 
@@ -983,6 +1071,7 @@ export default function AdminHub({ onBack, onGenerateModule }) {
         {activeTab === 'modules' && (
           <ModulesView
             modules={modules}
+            teams={teams}
             token={token}
             companyConfig={companyConfig}
             onModuleSaved={fetchData}
