@@ -500,4 +500,5 @@ app.post('/api/proxy/embed', async (req, res) => {
   res.status(503).json({ error: 'Ollama embedding échoué' })
 })
 
-app.listen(3001, () => console.log('Backend LHCtrl running on port 3001'))
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => console.log(`Backend LHCtrl running on port ${PORT}`))
