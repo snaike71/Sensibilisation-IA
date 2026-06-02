@@ -12,7 +12,7 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 5000,
   query_timeout: 10000,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.DATABASE_URL?.includes('supabase') ? { rejectUnauthorized: false } : false,
 })
 
 pool.on('error', (err) => console.error('Pool error:', err.message))
@@ -42,6 +42,7 @@ function auth(req, res, next) {
 
 // POST /api/auth/register — onboarding admin (crée une organisation)
 app.post('/api/auth/register', async (req, res) => {
+  console.log('[register] body:', JSON.stringify(req.body), '| content-type:', req.headers['content-type'])
   const { nom, email, password, secteur, taille, outils_ia, maturite } = req.body
   if (!nom || !email || !password) return res.status(400).json({ error: 'Champs manquants' })
   try {
@@ -55,6 +56,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ id: org.id, nom: org.nom, email: org.email_admin }, JWT_SECRET)
     res.json({ org, token })
   } catch (e) {
+    console.error('[register] ERREUR:', e.message, e.code)
     if (e.code === '23505') return res.status(400).json({ error: 'Cet email est déjà utilisé.' })
     res.status(500).json({ error: 'Erreur serveur.' })
   }

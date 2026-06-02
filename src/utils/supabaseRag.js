@@ -5,7 +5,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const EMBED_MODEL = 'nomic-embed-text'
-const OLLAMA_HEADERS = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
+const OLLAMA_HEADERS = { 'Content-Type': 'application/json' }
 
 // En mode Vercel+ngrok, les embeddings passent par le proxy backend (pas de CORS Ollama)
 const USE_PROXY = !!import.meta.env.VITE_API_BASE
