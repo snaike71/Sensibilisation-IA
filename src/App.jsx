@@ -81,7 +81,7 @@ export default function App() {
   if (phase === 'admin') {
     return (
       <AdminHub
-        onBack={() => setPhase('role-select')}
+        onBack={handleLogout}
         onGenerateModule={() => setPhase('admin-generate')}
       />
     )

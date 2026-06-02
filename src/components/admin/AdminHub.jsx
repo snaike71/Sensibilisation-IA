@@ -346,7 +346,7 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
             paddingLeft: 8
           }}
         >
-          ← Quitter
+          ← Déconnexion
         </button>
       </div>
     </div>
