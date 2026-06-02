@@ -8,13 +8,20 @@ import ApprenantDashboard from './components/apprenant/ApprenantDashboard.jsx'
 import AccrocheScreen from './components/apprenant/AccrocheScreen.jsx'
 import Quiz from './components/apprenant/Quiz.jsx'
 import ScoreScreen from './components/apprenant/ScoreScreen.jsx'
+import AdminHub from './components/admin/AdminHub.jsx'
 import AdminScreen from './components/admin/AdminScreen.jsx'
 
-// phases : 'login' | 'role-select' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin'
+// phases : 'login' | 'role-select' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
 
 export default function App() {
-  const { user, logout } = useApp()
-  const [phase, setPhase] = useState('login')
+  const { user, token, collaborator, logout } = useApp()
+
+  // Si déjà connecté (refresh), on repart directement sur role-select
+  const [phase, setPhase] = useState(() => {
+    if (user || token) return 'role-select'
+    if (collaborator) return 'apprenant-dashboard'
+    return 'login'
+  })
 
   const [score, setScore] = useState(0)
   const [total, setTotal] = useState(0)
@@ -68,8 +75,19 @@ export default function App() {
     )
   }
 
+  // Admin : hub de pilotage (pages du collègue)
   if (phase === 'admin') {
-    return <AdminScreen onBack={() => setPhase('role-select')} />
+    return (
+      <AdminHub
+        onBack={() => setPhase('role-select')}
+        onGenerateModule={() => setPhase('admin-generate')}
+      />
+    )
+  }
+
+  // Admin : génération IA de scénarios quiz
+  if (phase === 'admin-generate') {
+    return <AdminScreen onBack={() => setPhase('admin')} />
   }
 
   if (phase === 'accroche') {
