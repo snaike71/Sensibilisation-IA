@@ -123,39 +123,81 @@ function MaturityChart({ teams, sessions }) {
 
 // ─── UseCase Card ─────────────────────────────────────────────────────────────
 
-function UseCaseCard({ title, risk, desc, team, tool, risks, reco, onGenerate }) {
+function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, token, onGenerate, onRefresh }) {
+  const [showAssign, setShowAssign] = useState(false)
+  const [selectedTeam, setSelectedTeam] = useState(team || '')
+  const [assigning, setAssigning] = useState(false)
+  const [assigned, setAssigned] = useState(!!team)
+
+  const handleAssignTeam = async () => {
+    if (!selectedTeam) return
+    setAssigning(true)
+    try {
+      await fetch(apiUrl(`/api/usecases/${ucId}`), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ equipe: selectedTeam }),
+      })
+      setAssigned(true)
+      setShowAssign(false)
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setAssigning(false) }
+  }
+
   return (
-    <Card pad={22} hover style={{ position: "relative" }}>
-      <div className="flex flex-col md:flex-row gap-6" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{title}</div>
-            <RiskBadge level={risk} />
+    <div>
+      <Card pad={22} style={{ position: "relative" }}>
+        <div className="flex flex-col md:flex-row gap-6" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+              <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{title}</div>
+              <RiskBadge level={risk} />
+              {assigned && team && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 6, background: '#e0f2fe', color: '#0369a1', fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
+                  <Icon name="users" size={10} color="#0369a1" /> {team}
+                </span>
+              )}
+            </div>
+            <div style={{ color: C.inkSoft, fontSize: 13.5, lineHeight: 1.5, maxWidth: 720, fontFamily: SANS }}>{desc}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
+              <Chip icon="bolt">{tool}</Chip>
+              {risks.map((r) => <Chip key={r} tone="cyan">{r}</Chip>)}
+            </div>
+            <div style={{ marginTop: 16, background: C.cyan, borderRadius: 11, padding: "13px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <Icon name="bulb" size={17} color={C.night} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.night, letterSpacing: "0.04em" }}>RECOMMANDATION IA</div>
+                <div style={{ fontSize: 13, color: C.night, marginTop: 3, lineHeight: 1.45, fontFamily: SANS }}>{reco}</div>
+              </div>
+            </div>
           </div>
-          <div style={{ color: C.inkSoft, fontSize: 13.5, lineHeight: 1.5, maxWidth: 720, fontFamily: SANS }}>{desc}</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
-            <Chip icon="users">{team}</Chip>
-            <Chip icon="bolt">{tool}</Chip>
-            {risks.map((r) => <Chip key={r} tone="cyan">{r}</Chip>)}
-          </div>
-          {/* Recommendation encart cyan */}
-          <div style={{ marginTop: 16, background: C.cyan, borderRadius: 11, padding: "13px 16px",
-            display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <Icon name="bulb" size={17} color={C.night} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.night, letterSpacing: "0.04em" }}>RECOMMANDATION IA</div>
-              <div style={{ fontSize: 13, color: C.night, marginTop: 3, lineHeight: 1.45, fontFamily: SANS }}>{reco}</div>
+          <div className="w-full md:w-auto" style={{ display: "flex", flexDirection: "column", gap: 9, alignItems: "stretch", minWidth: 168 }}>
+            <div onClick={onGenerate}>
+              <Btn kind="primary" icon="brain" full>Générer module</Btn>
+            </div>
+            <div onClick={() => setShowAssign(v => !v)}>
+              <Btn kind="ghost" size="sm" icon="users" full>{showAssign ? 'Annuler' : team ? 'Changer équipe' : 'Assigner équipe'}</Btn>
             </div>
           </div>
         </div>
-        <div className="w-full md:w-auto" style={{ display: "flex", flexDirection: "column", gap: 9, alignItems: "stretch", minWidth: 168 }}>
-          <div onClick={onGenerate}>
-            <Btn kind="primary" icon="brain" full>Générer module</Btn>
+      </Card>
+
+      {showAssign && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Associer ce cas d'usage à une équipe</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <select value={selectedTeam} onChange={e => setSelectedTeam(e.target.value)}
+              style={{ flex: 1, height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.bg, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: selectedTeam ? C.ink : C.inkMute, outline: "none" }}>
+              <option value="">Sélectionner une équipe…</option>
+              {(teams || []).map(t => <option key={t.id} value={t.nom}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
+            </select>
+            <div onClick={handleAssignTeam} style={{ opacity: !selectedTeam || assigning ? 0.4 : 1, pointerEvents: !selectedTeam || assigning ? "none" : "auto", flexShrink: 0 }}>
+              <Btn kind="primary" size="sm">{assigning ? '…' : 'Confirmer'}</Btn>
+            </div>
           </div>
-          <Btn kind="ghost" size="sm" full>Modifier</Btn>
         </div>
-      </div>
-    </Card>
+      )}
+    </div>
   )
 }
 
@@ -537,7 +579,7 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
 const RISK_LEVELS = ['Faible', 'Modéré', 'Élevé']
 const AI_TOOLS = ['ChatGPT', 'Claude', 'Gemini', 'Copilot', 'Mistral', 'Notion AI', 'Autre']
 
-function UseCasesView({ usecases, onGenerateModule, token, onRefresh }) {
+function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
   const [draft, setDraft] = useState({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
   const [saving, setSaving] = useState(false)
@@ -629,14 +671,18 @@ function UseCasesView({ usecases, onGenerateModule, token, onRefresh }) {
             return (
               <UseCaseCard
                 key={uc.id}
+                ucId={uc.id}
                 title={uc.intitule}
                 risk={uc.niveau_risque}
                 desc={uc.description || "Cas d'usage identifié dans l'organisation."}
-                team={uc.equipe || "Toutes équipes"}
+                team={uc.equipe || ""}
                 tool={uc.outil_ia || uc.outil || "ChatGPT"}
                 risks={risks}
                 reco={uc.recommandation || "Sensibilisez l'équipe aux risques liés à cet usage IA."}
+                teams={teams}
+                token={token}
                 onGenerate={() => onGenerateModule(uc)}
+                onRefresh={onRefresh}
               />
             )
           })}
@@ -648,16 +694,19 @@ function UseCasesView({ usecases, onGenerateModule, token, onRefresh }) {
 
 // ─── Generate Module Panel (inline dans Modules) ──────────────────────────────
 
-function GenerateModulePanel({ token, companyConfig, onSaved, onCancel }) {
+function GenerateModulePanel({ token, companyConfig, prefillUsecase, onSaved, onCancel }) {
   const { saveConfig } = useApp()
   const { generateSituations, loading, error } = useOllama()
 
+  // Pré-remplir avec le cas d'usage si disponible
   const [form, setForm] = useState({
     companyName: companyConfig?.companyName || '',
     sector: companyConfig?.sector || '',
     size: companyConfig?.size || '',
-    tools: companyConfig?.tools || '',
-    context: '',
+    tools: prefillUsecase?.outil_ia || companyConfig?.tools || '',
+    context: prefillUsecase
+      ? `Cas d'usage : ${prefillUsecase.intitule}. Équipe : ${prefillUsecase.equipe || 'Non précisée'}. Outil IA : ${prefillUsecase.outil_ia || 'ChatGPT'}. Niveau de risque : ${prefillUsecase.niveau_risque || 'Modéré'}. ${prefillUsecase.description || ''}`
+      : '',
     count: 2,
     questionsPerScenario: 3,
   })
@@ -794,8 +843,11 @@ function GenerateModulePanel({ token, companyConfig, onSaved, onCancel }) {
 
 // ─── Modules View ─────────────────────────────────────────────────────────────
 
-function ModulesView({ modules, teams, token, companyConfig, onModuleSaved }) {
-  const [showGenerate, setShowGenerate] = useState(false)
+function ModulesView({ modules, teams, token, companyConfig, pendingUsecase, onModuleSaved }) {
+  const [showGenerate, setShowGenerate] = useState(!!pendingUsecase)
+
+  // Si un cas d'usage arrive en attente, ouvrir automatiquement le panneau
+  useState(() => { if (pendingUsecase) setShowGenerate(true) })
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -809,10 +861,22 @@ function ModulesView({ modules, teams, token, companyConfig, onModuleSaved }) {
         }
       />
 
+      {pendingUsecase && showGenerate && (
+        <div style={{ background: '#e0f2fe', border: '1px solid #bae6fd', borderRadius: 11, padding: "11px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Icon name="bulb" size={16} color="#0369a1" />
+          <span style={{ fontFamily: SANS, fontSize: 13.5, color: '#0369a1' }}>
+            Génération liée au cas d'usage <strong>"{pendingUsecase.intitule}"</strong>
+            {pendingUsecase.equipe ? ` — équipe ${pendingUsecase.equipe}` : ''}.
+            Le contexte a été pré-rempli.
+          </span>
+        </div>
+      )}
+
       {showGenerate && (
         <GenerateModulePanel
           token={token}
           companyConfig={companyConfig}
+          prefillUsecase={pendingUsecase}
           onSaved={() => { setShowGenerate(false); if (onModuleSaved) onModuleSaved() }}
           onCancel={() => setShowGenerate(false)}
         />
@@ -977,6 +1041,7 @@ function TeamsView({ teams, token, onTeamCreated }) {
 export default function AdminHub({ onBack, onGenerateModule }) {
   const { user, token, companyConfig } = useApp()
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [pendingUsecase, setPendingUsecase] = useState(null) // use case à pré-remplir dans la génération
 
   // Unified lists state
   const [usecases, setUsecases] = useState([])
@@ -1018,12 +1083,10 @@ export default function AdminHub({ onBack, onGenerateModule }) {
     fetchData()
   }, [token])
 
-  const handleGenerateModule = () => {
-    if (onGenerateModule) onGenerateModule()
-  }
-
-  const triggerGenerateFreeModule = () => {
-    if (onGenerateModule) onGenerateModule()
+  // Depuis un cas d'usage : bascule vers l'onglet Modules avec le contexte pré-rempli
+  const handleGenerateModule = (uc) => {
+    if (uc) setPendingUsecase(uc)
+    setActiveTab('modules')
   }
 
   const avgMaturity = sessions.length > 0
@@ -1062,6 +1125,7 @@ export default function AdminHub({ onBack, onGenerateModule }) {
         {activeTab === 'usecases' && (
           <UseCasesView
             usecases={usecases}
+            teams={teams}
             onGenerateModule={handleGenerateModule}
             token={token}
             onRefresh={fetchData}
@@ -1073,7 +1137,8 @@ export default function AdminHub({ onBack, onGenerateModule }) {
             teams={teams}
             token={token}
             companyConfig={companyConfig}
-            onModuleSaved={fetchData}
+            pendingUsecase={pendingUsecase}
+            onModuleSaved={() => { setPendingUsecase(null); fetchData() }}
           />
         )}
         {activeTab === 'teams' && (
