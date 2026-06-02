@@ -1,6 +1,6 @@
 import express from 'express'
 import pg from 'pg'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import cors from 'cors'
 
@@ -252,7 +252,7 @@ app.get('/api/teams', auth, async (req, res) => {
 // POST /api/teams
 app.post('/api/teams', auth, async (req, res) => {
   const { nom, description } = req.body
-  const prefix = nom.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'TEAM'
+  const prefix = (nom.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'TEAM').padEnd(4, '0')
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const suffix = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   const code_acces = `${prefix}-${suffix}`
