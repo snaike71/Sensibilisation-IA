@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiUrl, API_HEADERS } from './api.js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const EMBED_MODEL = 'nomic-embed-text'
 const OLLAMA_HEADERS = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
+
+// En mode Vercel+ngrok, les embeddings passent par le proxy backend (pas de CORS Ollama)
+const USE_PROXY = !!import.meta.env.VITE_API_BASE
 
 // Supabase client — null si les clés ne sont pas configurées
 const supabase =
@@ -37,19 +41,27 @@ export function chunkText(text, chunkSize = 150, overlap = 30) {
  * Obtient le vecteur d'embedding d'un texte via Ollama nomic-embed-text.
  */
 export async function embedText(text) {
-  // Essayer d'abord /api/embed (Ollama >= 0.1.26), puis /api/embeddings (anciennes versions)
+  // En mode proxy (Vercel+ngrok) : on passe par le backend pour éviter les CORS Ollama
+  if (USE_PROXY) {
+    const res = await fetch(apiUrl('/api/proxy/embed'), {
+      method: 'POST',
+      headers: API_HEADERS,
+      body: JSON.stringify({ model: EMBED_MODEL, text }),
+    })
+    if (!res.ok) throw new Error(`Embedding échoué via proxy (HTTP ${res.status})`)
+    const data = await res.json()
+    if (data.embedding) return data.embedding
+    throw new Error('Embedding proxy : réponse vide')
+  }
+
+  // En local : appel direct Ollama
   for (const endpoint of [`${OLLAMA_URL}/api/embed`, `${OLLAMA_URL}/api/embeddings`]) {
     const body = endpoint.endsWith('/embed')
       ? JSON.stringify({ model: EMBED_MODEL, input: text })
       : JSON.stringify({ model: EMBED_MODEL, prompt: text })
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: OLLAMA_HEADERS,
-      body,
-    })
+    const res = await fetch(endpoint, { method: 'POST', headers: OLLAMA_HEADERS, body })
     if (!res.ok) continue
     const data = await res.json()
-    // /api/embed retourne { embeddings: [[...]] }, /api/embeddings retourne { embedding: [...] }
     const vec = data.embeddings?.[0] ?? data.embedding
     if (vec) return vec
   }

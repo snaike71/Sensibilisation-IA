@@ -3,11 +3,12 @@ import { useState } from 'react'
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const MODEL = 'gemma4:e2b'
 
-// Header requis pour bypasser la page d'avertissement ngrok (tunnel gratuit)
-const OLLAMA_HEADERS = {
-  'Content-Type': 'application/json',
-  'ngrok-skip-browser-warning': 'true',
-}
+// Si VITE_API_BASE est défini (mode Vercel+ngrok), on passe par le proxy backend
+// pour éviter les problèmes CORS avec Ollama
+const USE_PROXY = !!import.meta.env.VITE_API_BASE
+import { apiUrl, API_HEADERS } from '../utils/api.js'
+
+const OLLAMA_HEADERS = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
 
 // Normalise bonneReponse : seules "ia" et "humain" sont valides
 function normalizeReponse(val, categorie) {
@@ -135,11 +136,12 @@ function extractSituations(raw) {
 }
 
 async function callOllama(prompt) {
-  const res = await fetch(`${OLLAMA_URL}/api/generate`, {
-    method: 'POST',
-    headers: OLLAMA_HEADERS,
-    body: JSON.stringify({ model: MODEL, prompt, stream: false }),
-  })
+  const url = USE_PROXY ? apiUrl('/api/proxy/generate') : `${OLLAMA_URL}/api/generate`
+  const headers = USE_PROXY ? API_HEADERS : OLLAMA_HEADERS
+  const body = USE_PROXY
+    ? JSON.stringify({ model: MODEL, prompt, stream: false })
+    : JSON.stringify({ model: MODEL, prompt, stream: false })
+  const res = await fetch(url, { method: 'POST', headers, body })
   if (!res.ok) throw new Error(`Ollama inaccessible (HTTP ${res.status})`)
   const data = await res.json()
   return data.response ?? ''
@@ -154,9 +156,11 @@ export function useOllama() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+      const genUrl = USE_PROXY ? apiUrl('/api/proxy/generate') : `${OLLAMA_URL}/api/generate`
+      const genHeaders = USE_PROXY ? API_HEADERS : OLLAMA_HEADERS
+      const res = await fetch(genUrl, {
         method: 'POST',
-        headers: OLLAMA_HEADERS,
+        headers: genHeaders,
         body: JSON.stringify({
           model: MODEL,
           prompt: buildPrompt(config, count, questionsPerScenario),

@@ -294,4 +294,46 @@ app.get('/api/documents/search', auth, async (req, res) => {
   res.json(rows.map(r => r.chunk))
 })
 
+// ─── Proxy Ollama (évite CORS navigateur → Ollama) ───────────────────────────
+
+const OLLAMA_LOCAL = process.env.OLLAMA_URL || 'http://host.docker.internal:11434'
+
+// POST /api/proxy/generate — génération texte
+app.post('/api/proxy/generate', async (req, res) => {
+  try {
+    const r = await fetch(`${OLLAMA_LOCAL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    })
+    if (!r.ok) return res.status(r.status).json({ error: `Ollama HTTP ${r.status}` })
+    const data = await r.json()
+    res.json(data)
+  } catch (e) {
+    res.status(503).json({ error: 'Ollama inaccessible: ' + e.message })
+  }
+})
+
+// POST /api/proxy/embed — embeddings (essaie /api/embed puis /api/embeddings)
+app.post('/api/proxy/embed', async (req, res) => {
+  const { model, text } = req.body
+  for (const endpoint of [`${OLLAMA_LOCAL}/api/embed`, `${OLLAMA_LOCAL}/api/embeddings`]) {
+    try {
+      const body = endpoint.endsWith('/embed')
+        ? JSON.stringify({ model, input: text })
+        : JSON.stringify({ model, prompt: text })
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      if (!r.ok) continue
+      const data = await r.json()
+      const vec = data.embeddings?.[0] ?? data.embedding
+      if (vec) return res.json({ embedding: vec })
+    } catch { continue }
+  }
+  res.status(503).json({ error: 'Ollama embedding échoué' })
+})
+
 app.listen(3001, () => console.log('Backend LHCtrl running on port 3001'))
