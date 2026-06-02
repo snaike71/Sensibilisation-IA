@@ -147,6 +147,21 @@ app.put('/api/usecases/:id', auth, async (req, res) => {
   }
 })
 
+// DELETE /api/usecases/:id
+app.delete('/api/usecases/:id', auth, async (req, res) => {
+  const { id } = req.params
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM usecases WHERE id = $1 AND org_id = $2',
+      [id, req.org.id]
+    )
+    if (!rowCount) return res.status(404).json({ error: 'Cas d\'usage non trouvé' })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ─── Modules ──────────────────────────────────────────────────────────────────
 
 // GET /api/modules
@@ -186,6 +201,21 @@ app.put('/api/modules/:id', auth, async (req, res) => {
     )
     if (!rows.length) return res.status(404).json({ error: 'Module non trouvé' })
     res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+// DELETE /api/modules/:id
+app.delete('/api/modules/:id', auth, async (req, res) => {
+  const { id } = req.params
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM modules WHERE id = $1 AND org_id = $2',
+      [id, req.org.id]
+    )
+    if (!rowCount) return res.status(404).json({ error: 'Module non trouvé' })
+    res.json({ ok: true })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

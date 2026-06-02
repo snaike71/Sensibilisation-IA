@@ -123,11 +123,15 @@ function MaturityChart({ teams, sessions }) {
 
 // ─── UseCase Card ─────────────────────────────────────────────────────────────
 
-function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, token, onGenerate, onRefresh }) {
+function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, token, onGenerate, onRefresh, rawUc }) {
   const [showAssign, setShowAssign] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [selectedTeam, setSelectedTeam] = useState(team || '')
   const [assigning, setAssigning] = useState(false)
-  const [assigned, setAssigned] = useState(!!team)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editDraft, setEditDraft] = useState({ intitule: title, equipe: team || '', outil_ia: tool, niveau_risque: risk, description: desc })
+  const [saving, setSaving] = useState(false)
 
   const handleAssignTeam = async () => {
     if (!selectedTeam) return
@@ -138,21 +142,46 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify({ equipe: selectedTeam }),
       })
-      setAssigned(true)
       setShowAssign(false)
       if (onRefresh) onRefresh()
     } catch { /* silencieux */ } finally { setAssigning(false) }
   }
 
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await fetch(apiUrl(`/api/usecases/${ucId}`), {
+        method: 'DELETE',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+      })
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setDeleting(false); setConfirmDelete(false) }
+  }
+
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    try {
+      await fetch(apiUrl(`/api/usecases/${ucId}`), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify(editDraft),
+      })
+      setShowEdit(false)
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setSaving(false) }
+  }
+
+  const panelOpen = showAssign || showEdit || confirmDelete
+
   return (
     <div>
-      <Card pad={22} style={{ position: "relative" }}>
+      <Card pad={22} style={{ position: "relative", borderRadius: panelOpen ? "14px 14px 0 0" : 14 }}>
         <div className="flex flex-col md:flex-row gap-6" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
               <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{title}</div>
               <RiskBadge level={risk} />
-              {assigned && team && (
+              {team && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 6, background: '#e0f2fe', color: '#0369a1', fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
                   <Icon name="users" size={10} color="#0369a1" /> {team}
                 </span>
@@ -172,16 +201,21 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
             </div>
           </div>
           <div className="w-full md:w-auto" style={{ display: "flex", flexDirection: "column", gap: 9, alignItems: "stretch", minWidth: 168 }}>
-            <div onClick={onGenerate}>
-              <Btn kind="primary" icon="brain" full>Générer module</Btn>
-            </div>
-            <div onClick={() => setShowAssign(v => !v)}>
+            <div onClick={onGenerate}><Btn kind="primary" icon="brain" full>Générer module</Btn></div>
+            <div onClick={() => { setShowAssign(v => !v); setShowEdit(false); setConfirmDelete(false) }}>
               <Btn kind="ghost" size="sm" icon="users" full>{showAssign ? 'Annuler' : team ? 'Changer équipe' : 'Assigner équipe'}</Btn>
+            </div>
+            <div onClick={() => { setShowEdit(v => !v); setShowAssign(false); setConfirmDelete(false) }}>
+              <Btn kind="ghost" size="sm" icon="edit" full>{showEdit ? 'Annuler' : 'Modifier'}</Btn>
+            </div>
+            <div onClick={() => { setConfirmDelete(v => !v); setShowAssign(false); setShowEdit(false) }}>
+              <Btn kind="ghost" size="sm" full><span style={{ color: C.bad }}>Supprimer</span></Btn>
             </div>
           </div>
         </div>
       </Card>
 
+      {/* Assigner équipe */}
       {showAssign && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "16px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Associer ce cas d'usage à une équipe</div>
@@ -193,6 +227,63 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
             </select>
             <div onClick={handleAssignTeam} style={{ opacity: !selectedTeam || assigning ? 0.4 : 1, pointerEvents: !selectedTeam || assigning ? "none" : "auto", flexShrink: 0 }}>
               <Btn kind="primary" size="sm">{assigning ? '…' : 'Confirmer'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modifier */}
+      {showEdit && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Modifier le cas d'usage</div>
+          <Field label="Intitulé">
+            <Input placeholder="Intitulé" value={editDraft.intitule} onChange={e => setEditDraft({...editDraft, intitule: e.target.value})} />
+          </Field>
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <Field label="Équipe">
+                <Input placeholder="Ex : RH, Commercial…" value={editDraft.equipe} onChange={e => setEditDraft({...editDraft, equipe: e.target.value})} />
+              </Field>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Field label="Outil IA">
+                <select value={editDraft.outil_ia} onChange={e => setEditDraft({...editDraft, outil_ia: e.target.value})}
+                  style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none" }}>
+                  {['ChatGPT','Claude','Gemini','Copilot','Mistral','Notion AI','Autre'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </Field>
+            </div>
+          </div>
+          <Field label="Niveau de risque">
+            <div style={{ display: "flex", gap: 8 }}>
+              {['Faible','Modéré','Élevé'].map(r => (
+                <div key={r} onClick={() => setEditDraft({...editDraft, niveau_risque: r})} style={{ cursor: "pointer" }}>
+                  <Chip sel={editDraft.niveau_risque === r}>{r}</Chip>
+                </div>
+              ))}
+            </div>
+          </Field>
+          <Field label="Description">
+            <textarea value={editDraft.description} onChange={e => setEditDraft({...editDraft, description: e.target.value})} rows={2}
+              style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "10px 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", resize: "none", boxSizing: "border-box" }} />
+          </Field>
+          <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
+            <div onClick={() => setShowEdit(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleSaveEdit} style={{ opacity: saving ? 0.5 : 1, pointerEvents: saving ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm">{saving ? 'Enregistrement…' : 'Enregistrer'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmer suppression */}
+      {confirmDelete && (
+        <div style={{ background: C.badBg, border: `1px solid ${C.bad}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "14px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ fontFamily: SANS, fontSize: 13, color: C.bad }}>Supprimer définitivement ce cas d'usage ?</span>
+          <div style={{ display: "flex", gap: 9 }}>
+            <div onClick={() => setConfirmDelete(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleDelete} style={{ opacity: deleting ? 0.5 : 1, pointerEvents: deleting ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm"><span style={{ color: C.white }}>{deleting ? '…' : 'Confirmer'}</span></Btn>
             </div>
           </div>
         </div>
@@ -215,6 +306,8 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
   const [showAssign, setShowAssign] = useState(false)
   const [assignTeam, setAssignTeam] = useState('')
   const [assigning, setAssigning] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const scenarios = (() => {
     try { return contenu ? JSON.parse(contenu) : [] } catch { return [] }
@@ -224,19 +317,24 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
     if (!assignTeam) return
     setAssigning(true)
     try {
-      // Trouver le module correspondant par son code pour avoir son ID
-      // Le code est passé via la prop `code`
       const res = await fetch(apiUrl(`/api/modules/${moduleId}`), {
         method: 'PUT',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify({ equipes_ciblees: assignTeam }),
       })
-      if (res.ok) {
-        setShowAssign(false)
-        setAssignTeam('')
-        if (onRefresh) onRefresh()
-      }
+      if (res.ok) { setShowAssign(false); setAssignTeam(''); if (onRefresh) onRefresh() }
     } catch { /* silencieux */ } finally { setAssigning(false) }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await fetch(apiUrl(`/api/modules/${moduleId}`), {
+        method: 'DELETE',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+      })
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setDeleting(false); setConfirmDelete(false) }
   }
 
   return (
@@ -263,12 +361,15 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
             <Chip>{level}</Chip><Chip icon="play">{dur}</Chip><Chip tone="cyan" icon="users">{team}</Chip>
           </div>
           <div style={{ display: "flex", gap: 9 }}>
-            <div onClick={() => { setShowPreview(v => !v); setShowAssign(false) }} style={{ flex: 1 }}>
+            <div onClick={() => { setShowPreview(v => !v); setShowAssign(false); setConfirmDelete(false) }} style={{ flex: 1 }}>
               <Btn kind="ghost" size="sm" full>{showPreview ? 'Masquer' : 'Aperçu'}</Btn>
             </div>
-            <div onClick={() => { setShowAssign(v => !v); setShowPreview(false) }} style={{ flex: 1 }}>
+            <div onClick={() => { setShowAssign(v => !v); setShowPreview(false); setConfirmDelete(false) }} style={{ flex: 1 }}>
               <Btn kind="primary" size="sm" icon="send" full>Assigner</Btn>
             </div>
+          </div>
+          <div onClick={() => { setConfirmDelete(v => !v); setShowPreview(false); setShowAssign(false) }} style={{ marginTop: 6 }}>
+            <Btn kind="ghost" size="sm" full><span style={{ color: C.bad, fontSize: 12 }}>Supprimer ce module</span></Btn>
           </div>
         </div>
       </Card>
@@ -315,6 +416,19 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
             <div onClick={() => setShowAssign(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
             <div onClick={handleAssign} style={{ opacity: !assignTeam || assigning ? 0.4 : 1, pointerEvents: !assignTeam || assigning ? "none" : "auto" }}>
               <Btn kind="primary" size="sm" icon="send">{assigning ? 'Assignation…' : 'Confirmer'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmer suppression */}
+      {confirmDelete && (
+        <div style={{ background: C.badBg, border: `1px solid ${C.bad}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ fontFamily: SANS, fontSize: 13, color: C.bad }}>Supprimer définitivement ce module ?</span>
+          <div style={{ display: "flex", gap: 9 }}>
+            <div onClick={() => setConfirmDelete(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={handleDelete} style={{ opacity: deleting ? 0.5 : 1, pointerEvents: deleting ? "none" : "auto" }}>
+              <Btn kind="primary" size="sm">{deleting ? '…' : 'Confirmer'}</Btn>
             </div>
           </div>
         </div>
