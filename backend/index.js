@@ -498,7 +498,7 @@ app.post('/api/proxy/generate', async (req, res) => {
   try {
     const r = await fetch(`${OLLAMA_LOCAL}/api/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify(req.body),
     })
     if (!r.ok) return res.status(r.status).json({ error: `Ollama HTTP ${r.status}` })
@@ -512,6 +512,7 @@ app.post('/api/proxy/generate', async (req, res) => {
 // POST /api/proxy/embed — embeddings (essaie /api/embed puis /api/embeddings)
 app.post('/api/proxy/embed', async (req, res) => {
   const { model, text } = req.body
+  const ngrokHeaders = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' }
   for (const endpoint of [`${OLLAMA_LOCAL}/api/embed`, `${OLLAMA_LOCAL}/api/embeddings`]) {
     try {
       const body = endpoint.endsWith('/embed')
@@ -519,7 +520,7 @@ app.post('/api/proxy/embed', async (req, res) => {
         : JSON.stringify({ model, prompt: text })
       const r = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: ngrokHeaders,
         body,
       })
       if (!r.ok) continue
