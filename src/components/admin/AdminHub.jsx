@@ -82,16 +82,40 @@ function KpiCard({ label, value, suffix, delta, icon }) {
   )
 }
 
-// ─── MaturityChart ───────────────────────────────────────────────────────────
+// ─── TeamFilterBar ────────────────────────────────────────────────────────────
+
+function TeamFilterBar({ teams, value, onChange }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.04em", textTransform: "uppercase", marginRight: 4 }}>Équipe</span>
+      <button
+        onClick={() => onChange(null)}
+        style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${!value ? C.signal : C.border}`, background: !value ? C.signalSoft : C.white, color: !value ? C.signal : C.inkSoft, fontFamily: SANS, fontSize: 12.5, fontWeight: !value ? 700 : 500, cursor: "pointer", transition: "all 0.15s" }}
+      >
+        Toutes
+      </button>
+      {teams.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.nom)}
+          style={{ padding: "5px 12px", borderRadius: 7, border: `1.5px solid ${value === t.nom ? C.signal : C.border}`, background: value === t.nom ? C.signalSoft : C.white, color: value === t.nom ? C.signal : C.inkSoft, fontFamily: SANS, fontSize: 12.5, fontWeight: value === t.nom ? 700 : 500, cursor: "pointer", transition: "all 0.15s" }}
+        >
+          {t.nom}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── MaturityChart ────────────────────────────────────────────────────────────
 
 function MaturityChart({ teams, sessions }) {
   const rows = teams.map(t => {
-    // Find sessions for collaborators in this team
-    const teamSessions = sessions.filter(s => s.concepts_maitrises === t.nom)
+    const teamSessions = sessions.filter(s => s.team_id === t.id)
     const score = teamSessions.length > 0
-      ? Math.round((teamSessions.reduce((acc, s) => acc + (s.score / s.total_questions), 0) / teamSessions.length) * 100)
-      : 50 // fallback to baseline maturity
-    return { label: t.nom, score }
+      ? Math.round((teamSessions.reduce((acc, s) => acc + (s.score / Math.max(s.total_questions, 1)), 0) / teamSessions.length) * 100)
+      : null
+    return { label: t.nom, score, hasSessions: teamSessions.length > 0 }
   })
 
   return (
@@ -114,9 +138,11 @@ function MaturityChart({ teams, sessions }) {
             <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 92, fontSize: 12.5, color: C.inkSoft, fontWeight: 600, textAlign: "right", fontFamily: SANS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.label}</div>
               <div style={{ flex: 1, height: 14, background: C.bg, borderRadius: 7, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                <div style={{ width: `${row.score}%`, height: "100%", background: row.score < 45 ? C.cyanDeep : C.signal, borderRadius: 7 }} />
+                {row.hasSessions && <div style={{ width: `${row.score}%`, height: "100%", background: row.score < 45 ? C.cyanDeep : C.signal, borderRadius: 7 }} />}
               </div>
-              <div style={{ width: 38, fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.ink }}>{row.score}</div>
+              <div style={{ width: 38, fontFamily: MONO, fontSize: 12, fontWeight: 700, color: row.hasSessions ? C.ink : C.inkMute }}>
+                {row.hasSessions ? row.score : '—'}
+              </div>
             </div>
           ))}
         </div>
@@ -324,9 +350,7 @@ const catColors = {
 }
 
 function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
-  const [activePanel, setActivePanel] = useState(null) // 'preview' | 'editTeam' | 'editContent' | 'delete'
-  const [assignTeam, setAssignTeam] = useState(team || '')
-  const [assigning, setAssigning] = useState(false)
+  const [activePanel, setActivePanel] = useState(null) // 'preview' | 'editContent' | 'delete'
   const [deleting, setDeleting] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -338,19 +362,6 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
   const [editScenarios, setEditScenarios] = useState(parsedScenarios)
 
   const toggle = (panel) => setActivePanel(p => p === panel ? null : panel)
-
-  const handleAssignTeam = async () => {
-    if (!assignTeam) return
-    setAssigning(true)
-    try {
-      const res = await fetch(apiUrl(`/api/modules/${moduleId}`), {
-        method: 'PUT',
-        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ equipes_ciblees: assignTeam }),
-      })
-      if (res.ok) { setActivePanel(null); if (onRefresh) onRefresh() }
-    } catch { /* silencieux */ } finally { setAssigning(false) }
-  }
 
   const handleSaveContent = async () => {
     setSaving(true)
@@ -389,48 +400,41 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
 
   return (
     <div>
-      <Card pad={20} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between", borderRadius: activePanel ? "14px 14px 0 0" : 14 }}>
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 11, background: C.signalSoft, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name="brain" size={21} color={C.signal} />
-              </div>
-              <div style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: C.inkMute }}>{code}</div>
-            </div>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 6, background: C.signal, color: C.white, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
-              <Icon name="bolt" size={11} color={C.white} /> PERSONNALISÉ
-            </span>
+      <Card pad={20} style={{ position: "relative", borderRadius: activePanel ? "14px 14px 0 0" : 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+          {/* Icône */}
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: C.signalSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="brain" size={22} color={C.signal} />
           </div>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 17, color: C.ink }}>{title}</div>
-          <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 7, lineHeight: 1.5, fontFamily: SANS }}>{desc}</div>
-        </div>
 
-        <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
-            <Chip>{level}</Chip>
-            <Chip icon="play">{dur}</Chip>
-            {teamName
-              ? <Chip tone="cyan" icon="users">{teamName}</Chip>
-              : <span style={{ fontSize: 11.5, color: C.inkMute, fontFamily: SANS, alignSelf: "center" }}>Aucune équipe assignée</span>
-            }
+          {/* Infos */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>{title}</div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 6, background: C.signal, color: C.white, fontFamily: MONO, fontSize: 10, fontWeight: 700 }}>
+                <Icon name="bolt" size={10} color={C.white} /> PERSONNALISÉ
+              </span>
+            </div>
+            <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 4, fontFamily: SANS }}>{desc}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              <Chip>{level}</Chip>
+              <Chip icon="play">{dur}</Chip>
+              {teamName
+                ? <Chip tone="cyan" icon="users">{teamName}</Chip>
+                : <span style={{ fontSize: 11.5, color: C.inkMute, fontFamily: SANS, alignSelf: "center" }}>Aucune équipe assignée</span>}
+            </div>
           </div>
-          {/* Ligne 1 : Aperçu + Modifier contenu */}
-          <div style={{ display: "flex", gap: 9, marginBottom: 7 }}>
-            <div onClick={() => toggle('preview')} style={{ flex: 1 }}>
-              <Btn kind="ghost" size="sm" full>{activePanel === 'preview' ? 'Masquer aperçu' : 'Aperçu'}</Btn>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }} className="w-full md:w-auto">
+            <div onClick={() => toggle('preview')}>
+              <Btn kind="ghost" size="sm">{activePanel === 'preview' ? 'Masquer' : 'Aperçu'}</Btn>
             </div>
-            <div onClick={() => { toggle('editContent'); setEditScenarios(parsedScenarios) }} style={{ flex: 1 }}>
-              <Btn kind="ghost" size="sm" full>{activePanel === 'editContent' ? 'Annuler' : 'Modifier contenu'}</Btn>
+            <div onClick={() => { toggle('editContent'); setEditScenarios(parsedScenarios) }}>
+              <Btn kind="ghost" size="sm" icon="pencil">{activePanel === 'editContent' ? 'Annuler' : 'Modifier'}</Btn>
             </div>
-          </div>
-          {/* Ligne 2 : Modifier équipe + Supprimer */}
-          <div style={{ display: "flex", gap: 9 }}>
-            <div onClick={() => toggle('editTeam')} style={{ flex: 1 }}>
-              <Btn kind="primary" size="sm" icon="users" full>{activePanel === 'editTeam' ? 'Annuler' : teamName ? 'Modifier équipe' : 'Assigner équipe'}</Btn>
-            </div>
-            <div onClick={() => toggle('delete')} style={{ flex: 1 }}>
-              <Btn kind="ghost" size="sm" full><span style={{ color: C.bad, fontSize: 12 }}>Supprimer</span></Btn>
+            <div onClick={() => toggle('delete')}>
+              <Btn kind="ghost" size="sm" icon="trash"><span style={{ color: C.bad }}>Supprimer</span></Btn>
             </div>
           </div>
         </div>
@@ -460,26 +464,6 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
               </div>
             )
           })}
-        </div>
-      )}
-
-      {/* Modifier équipe */}
-      {activePanel === 'editTeam' && (
-        <div style={{ ...subStyle, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>
-            {teamName ? `Équipe actuelle : ${teamName}` : 'Assigner à une équipe'}
-          </div>
-          <select value={assignTeam} onChange={e => setAssignTeam(e.target.value)}
-            style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.bg, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: assignTeam ? C.ink : C.inkMute, outline: "none" }}>
-            <option value="">Aucune équipe</option>
-            {(teams || []).map(t => <option key={t.id} value={t.nom}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
-          </select>
-          <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
-            <div onClick={() => setActivePanel(null)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
-            <div onClick={handleAssignTeam} style={{ opacity: assigning ? 0.5 : 1, pointerEvents: assigning ? "none" : "auto" }}>
-              <Btn kind="primary" size="sm" icon="users">{assigning ? '…' : 'Confirmer'}</Btn>
-            </div>
-          </div>
         </div>
       )}
 
@@ -776,7 +760,7 @@ function OrgProfileView({ token }) {
     fetch(apiUrl('/api/organisations'), { headers: { ...API_HEADERS, Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) { setOrg(data); setDraft(data) } })
-      .catch(() => {})
+      .catch(() => { })
   }, [token])
 
   const toggleOutil = (o) => setDraft(d => ({
@@ -1010,12 +994,13 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
     : 0
 
   const lowMaturityTeamsCount = teams.filter(t => {
-    const teamSessions = sessions.filter(s => s.concepts_maitrises === t.nom)
-    const score = teamSessions.length > 0
-      ? Math.round((teamSessions.reduce((acc, s) => acc + (s.score / s.total_questions), 0) / teamSessions.length) * 100)
-      : 50
+    const teamSessions = sessions.filter(s => s.team_id === t.id)
+    if (teamSessions.length === 0) return false
+    const score = Math.round((teamSessions.reduce((acc, s) => acc + (s.score / Math.max(s.total_questions, 1)), 0) / teamSessions.length) * 100)
     return score < 45
   }).length
+
+  const teamsWithSessions = teams.filter(t => sessions.some(s => s.team_id === t.id)).length
 
   // Parse recent activity items directly from sessions
   const activityItems = sessions.length > 0
@@ -1060,9 +1045,11 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
             « L'IA, ça se contrôle. »
           </div>
           <div style={{ color: "rgba(255,255,255,.72)", fontSize: 13.5, marginTop: 8, maxWidth: 520, fontFamily: SANS, lineHeight: 1.5 }}>
-            {lowMaturityTeamsCount > 0
-              ? `${lowMaturityTeamsCount} équipe${lowMaturityTeamsCount > 1 ? 's sont' : ' est'} sous le seuil de maturité recommandé. Générez un module ciblé pour les remettre à niveau.`
-              : "Toutes les équipes ont atteint le seuil de maturité recommandé. Excellent pilotage !"}
+            {sessions.length === 0
+              ? "Aucune session complétée pour le moment. Assignez des modules à vos équipes pour démarrer."
+              : lowMaturityTeamsCount > 0
+                ? `${lowMaturityTeamsCount} équipe${lowMaturityTeamsCount > 1 ? 's sont' : ' est'} sous le seuil de maturité recommandé. Générez un module ciblé pour les remettre à niveau.`
+                : `${teamsWithSessions} équipe${teamsWithSessions > 1 ? 's ont' : ' a'} atteint le seuil de maturité recommandé. Excellent pilotage !`}
           </div>
         </div>
         <div onClick={() => setActiveTab('usecases')} style={{ position: "relative" }}>
@@ -1109,6 +1096,11 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
   const [saving, setSaving] = useState(false)
   const [generatingReco, setGeneratingReco] = useState(false)
   const { generateRecommendation, generateRisques } = useOllama()
+  const [filterTeam, setFilterTeam] = useState(null)
+
+  const filteredUsecases = filterTeam
+    ? usecases.filter(uc => uc.equipe === filterTeam)
+    : usecases
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -1154,7 +1146,7 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <PageHead
         title="Cas d'usage IA"
-        sub={`${usecases.length} usage${usecases.length > 1 ? 's' : ''} identifié${usecases.length > 1 ? 's' : ''} — triés par niveau de risque`}
+        sub={`${filteredUsecases.length} / ${usecases.length} usage${usecases.length > 1 ? 's' : ''} affiché${filteredUsecases.length > 1 ? 's' : ''}`}
         actions={
           <div onClick={() => setShowForm(v => !v)}>
             <Btn kind="primary" icon={showForm ? "x" : "plus"}>{showForm ? 'Annuler' : 'Ajouter un cas'}</Btn>
@@ -1169,6 +1161,9 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
           <Icon name="brain" size={14} color={C.signal} />
           L'IA génère une recommandation personnalisée…
         </div>
+      )}
+      {teamsOptions.length > 0 && (
+        <TeamFilterBar teams={teamsOptions} value={filterTeam} onChange={setFilterTeam} />
       )}
 
       {/* Formulaire d'ajout */}
@@ -1229,11 +1224,15 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 48, background: C.white, border: `1px solid ${C.border}`, borderRadius: 14 }}>
           <span style={{ fontSize: 40 }}>💡</span>
           <div style={{ fontFamily: MONO, fontSize: 14, color: C.inkMute }}>Aucun cas d'usage déclaré</div>
-          <div onClick={() => setShowForm(true)}><Btn kind="primary" size="sm">Déclarer le premier cas</Btn></div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {usecases.map((uc) => {
+          {filteredUsecases.length === 0 && (
+            <div style={{ textAlign: "center", padding: 32, color: C.inkMute, fontFamily: SANS, fontSize: 13.5 }}>
+              Aucun cas d'usage pour l'équipe <strong>{filterTeam}</strong>.
+            </div>
+          )}
+          {filteredUsecases.map((uc) => {
             const rawRisques = uc.risques
             const risks = Array.isArray(rawRisques) && rawRisques.length > 0
               ? rawRisques
@@ -1529,21 +1528,30 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
 
 function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUsecase, onModuleSaved }) {
   const [showGenerate, setShowGenerate] = useState(!!pendingUsecase)
+  const [filterTeam, setFilterTeam] = useState(null)
 
   // Si un cas d'usage arrive en attente, ouvrir automatiquement le panneau
   useState(() => { if (pendingUsecase) setShowGenerate(true) })
+
+  const filteredModules = filterTeam
+    ? modules.filter(m => m.equipes_ciblees === filterTeam || (teams || []).find(t => t.id === m.equipes_ciblees)?.nom === filterTeam)
+    : modules
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <PageHead
         title="Modules"
-        sub={`${modules.length} module${modules.length > 1 ? 's' : ''} disponible${modules.length > 1 ? 's' : ''} pour l'organisation`}
+        sub={`${filteredModules.length} / ${modules.length} module${modules.length > 1 ? 's' : ''} affiché${filteredModules.length > 1 ? 's' : ''}`}
         actions={
           <div onClick={() => setShowGenerate(v => !v)}>
             <Btn kind="primary" icon={showGenerate ? "x" : "bolt"}>{showGenerate ? 'Annuler' : 'Générer un module'}</Btn>
           </div>
         }
       />
+
+      {(teams || []).length > 0 && (
+        <TeamFilterBar teams={teams || []} value={filterTeam} onChange={setFilterTeam} />
+      )}
 
       {pendingUsecase && showGenerate && (
         <div style={{ background: '#e0f2fe', border: '1px solid #bae6fd', borderRadius: 11, padding: "11px 18px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -1567,8 +1575,13 @@ function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUs
         />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
-        {modules.map((mod) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {filteredModules.length === 0 && modules.length > 0 && (
+          <div style={{ textAlign: "center", padding: 32, color: C.inkMute, fontFamily: SANS, fontSize: 13.5 }}>
+            Aucun module pour l'équipe <strong>{filterTeam}</strong>.
+          </div>
+        )}
+        {filteredModules.map((mod) => (
           <ModuleCard
             key={mod.id}
             moduleId={mod.id}
@@ -1585,21 +1598,7 @@ function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUs
           />
         ))}
 
-        {!showGenerate && (
-          <div
-            onClick={() => setShowGenerate(true)}
-            style={{
-              border: `2px dashed ${C.border}`, borderRadius: 14, padding: 20, display: "flex",
-              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minHeight: 200, cursor: "pointer"
-            }}
-          >
-            <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon name="plus" size={22} color={C.night} />
-            </div>
-            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 14, color: C.ink }}>Générer un nouveau module</div>
-            <div style={{ fontSize: 12.5, color: C.inkMute, textAlign: "center", maxWidth: 240, fontFamily: SANS }}>L'IA crée des scénarios quiz à partir du profil de votre organisation.</div>
-          </div>
-        )}
+
       </div>
     </div>
   )

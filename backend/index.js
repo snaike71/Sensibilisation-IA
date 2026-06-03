@@ -231,7 +231,6 @@ app.delete('/api/modules/:id', auth, async (req, res) => {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    // Détacher les sessions liées (historique conservé, lien supprimé)
     await client.query('UPDATE sessions SET module_id = NULL WHERE module_id = $1', [id])
     const { rowCount } = await client.query(
       'DELETE FROM modules WHERE id = $1 AND org_id = $2',
@@ -424,7 +423,7 @@ app.post('/api/sessions', async (req, res) => {
 // GET /api/sessions — résultats de l'org (admin)
 app.get('/api/sessions', auth, async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT s.*, c.nom as collaborateur_nom, m.titre as module_titre
+    `SELECT s.*, c.nom as collaborateur_nom, c.team_id, m.titre as module_titre
      FROM sessions s
      LEFT JOIN collaborators c ON s.collaborator_id = c.id
      LEFT JOIN modules m ON s.module_id = m.id
