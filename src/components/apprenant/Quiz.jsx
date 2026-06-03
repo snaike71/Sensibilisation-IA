@@ -373,16 +373,20 @@ export default function Quiz({ module, onFinish }) {
                     </p>
                     <div style={{ width: "100%", display: "flex", gap: 16 }}>
                       <DropZone id="ia" label="Déléguer à l'IA" emoji="✅">
-                        {Object.entries(answers).filter(([, a]) => a.chosen === 'ia').map(([id]) => {
-                          const q = scenarios.flatMap(s => s.questions).find(q => String(q.id) === id)
-                          return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
-                        })}
+                        {Object.entries(answers)
+                          .filter(([id, a]) => a.chosen === 'ia' && currentScenario.questions.some(q => String(q.id) === id) && String(currentQuestion.id) !== id)
+                          .map(([id]) => {
+                            const q = currentScenario.questions.find(q => String(q.id) === id)
+                            return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
+                          })}
                       </DropZone>
                       <DropZone id="humain" label="Garder en manuel" emoji="🧠">
-                        {Object.entries(answers).filter(([, a]) => a.chosen === 'humain').map(([id]) => {
-                          const q = scenarios.flatMap(s => s.questions).find(q => String(q.id) === id)
-                          return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
-                        })}
+                        {Object.entries(answers)
+                          .filter(([id, a]) => a.chosen === 'humain' && currentScenario.questions.some(q => String(q.id) === id) && String(currentQuestion.id) !== id)
+                          .map(([id]) => {
+                            const q = currentScenario.questions.find(q => String(q.id) === id)
+                            return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
+                          })}
                       </DropZone>
                     </div>
                   </>

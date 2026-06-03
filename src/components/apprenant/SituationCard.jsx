@@ -12,7 +12,7 @@ export default function SituationCard({ situation, isAnswered }) {
     <div
       ref={setNodeRef}
       style={{
-        transform: CSS.Translate.toString(transform),
+        transform: `${CSS.Translate.toString(transform)} ${isDragging ? "rotate(2deg)" : ""}`,
         background: C.white,
         border: `1.5px solid ${C.border}`,
         borderRadius: 14,
@@ -28,9 +28,8 @@ export default function SituationCard({ situation, isAnswered }) {
           : `0 2px 8px rgba(0,0,0,0.06)`,
         cursor: isAnswered ? "default" : "grab",
         userSelect: "none",
-        opacity: isAnswered ? 0 : 1,
+        opacity: isDragging ? 0 : (isAnswered ? 0 : 1),
         pointerEvents: isAnswered ? "none" : "auto",
-        transform: `${CSS.Translate.toString(transform)} ${isDragging ? "rotate(2deg)" : ""}`,
         transition: isDragging ? "none" : "box-shadow 0.15s ease, opacity 0.2s ease",
         zIndex: isDragging ? 50 : "auto",
         position: "relative",
