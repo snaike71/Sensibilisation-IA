@@ -1216,7 +1216,7 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
   const { saveConfig } = useApp()
   const { generateSituations, abortGeneration, loading, error } = useOllama()
 
-  const [selectedUcId, setSelectedUcId] = useState(prefillUsecase?.id || '')
+  const [selectedUcIds, setSelectedUcIds] = useState(prefillUsecase ? [String(prefillUsecase.id)] : [])
   const [count, setCount] = useState(2)
   const [questionsPerScenario, setQuestionsPerScenario] = useState(3)
   const [pdfText, setPdfText] = useState('')
@@ -1225,8 +1225,23 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
   const [genProgress, setGenProgress] = useState(null)
   const [genError, setGenError] = useState(null)
 
-  // Cas d'usage sélectionné (soit pré-rempli, soit choisi dans la liste)
-  const selectedUc = prefillUsecase || (usecases || []).find(u => u.id === selectedUcId) || null
+  const allUsecases = usecases || []
+  const selectedUcs = allUsecases.filter(u => selectedUcIds.includes(String(u.id)))
+
+  function toggleUc(id) {
+    const sid = String(id)
+    setSelectedUcIds(prev => prev.includes(sid) ? prev.filter(x => x !== sid) : [...prev, sid])
+  }
+
+  function toggleTeam(teamName) {
+    const teamIds = allUsecases.filter(uc => uc.equipe === teamName).map(uc => String(uc.id))
+    const allChecked = teamIds.every(id => selectedUcIds.includes(id))
+    if (allChecked) {
+      setSelectedUcIds(prev => prev.filter(id => !teamIds.includes(id)))
+    } else {
+      setSelectedUcIds(prev => [...new Set([...prev, ...teamIds])])
+    }
+  }
 
   async function handlePdf(e) {
     const file = e.target.files?.[0]
@@ -1243,43 +1258,63 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
     e.preventDefault()
     setGenError(null)
 
-    // Construire le contexte à partir du profil org + cas d'usage (plus de doublons)
-    const config = {
-      companyName: companyConfig?.companyName || 'Organisation',
-      sector: selectedUc?.equipe
-        ? `${companyConfig?.sector || 'Entreprise'} — équipe ${selectedUc.equipe}`
-        : (companyConfig?.sector || 'Entreprise'),
-      size: companyConfig?.size || '',
-      tools: selectedUc?.outil_ia || companyConfig?.tools || 'ChatGPT',
-      context: selectedUc
-        ? `Cas d'usage : ${selectedUc.intitule}. Niveau de risque : ${selectedUc.niveau_risque || 'Modéré'}. ${selectedUc.description || ''} ${selectedUc.recommandation || ''}`
-        : '',
-      documentContext: pdfText ? pdfText.slice(0, 6000) : undefined,
+    let situations
+
+    if (selectedUcs.length > 0) {
+      // Mode multi-cas d'usage : 1 thème par cas d'usage sélectionné
+      const usecaseConfigs = selectedUcs.map(uc => ({
+        companyName: companyConfig?.companyName || 'Organisation',
+        sector: uc.equipe
+          ? `${companyConfig?.sector || 'Entreprise'} — équipe ${uc.equipe}`
+          : (companyConfig?.sector || 'Entreprise'),
+        size: companyConfig?.size || '',
+        tools: uc.outil_ia || companyConfig?.tools || 'ChatGPT',
+        context: `Cas d'usage : ${uc.intitule}. Niveau de risque : ${uc.niveau_risque || 'Modéré'}. ${uc.description || ''} ${uc.recommandation || ''}`,
+        documentContext: pdfText ? pdfText.slice(0, 6000) : undefined,
+      }))
+      setGenProgress({ current: 0, total: selectedUcs.length })
+      situations = await generateSituations(null, selectedUcs.length, questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }), usecaseConfigs)
+    } else {
+      // Mode générique : N thèmes depuis le profil organisation
+      const config = {
+        companyName: companyConfig?.companyName || 'Organisation',
+        sector: companyConfig?.sector || 'Entreprise',
+        size: companyConfig?.size || '',
+        tools: companyConfig?.tools || 'ChatGPT',
+        context: '',
+        documentContext: pdfText ? pdfText.slice(0, 6000) : undefined,
+      }
+      setGenProgress({ current: 0, total: count })
+      situations = await generateSituations(config, count, questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }))
+      await saveConfig(config, situations)
     }
 
-    setGenProgress({ current: 0, total: count })
-    const situations = await generateSituations(config, count, questionsPerScenario, (c, t) => setGenProgress({ current: c, total: t }))
     setGenProgress(null)
     if (!situations) { setGenError(error || 'Génération échouée'); return }
 
-    await saveConfig(config, situations)
+    // Déduire l'équipe cible : commune à tous les UCs sélectionnés, sinon null
+    const firstEquipe = selectedUcs[0]?.equipe || null
+    const equipe = selectedUcs.length > 0 && selectedUcs.every(uc => uc.equipe === firstEquipe) ? firstEquipe : null
+    const nbThemes = situations.length
+    const titre = selectedUcs.length === 1
+      ? `${selectedUcs[0].intitule} — ${companyConfig?.companyName || 'Organisation'}`
+      : selectedUcs.length > 1
+        ? `Sensibilisation multi-thèmes — ${companyConfig?.companyName || 'Organisation'}`
+        : `Sensibilisation IA — ${companyConfig?.companyName || 'Organisation'}`
 
     try {
-      const titre = selectedUc
-        ? `${selectedUc.intitule} — ${companyConfig?.companyName || 'Organisation'}`
-        : `Sensibilisation IA — ${companyConfig?.companyName || 'Organisation'}`
       await fetch(apiUrl('/api/modules'), {
         method: 'POST',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           titre,
-          description: `${count} thème${count > 1 ? 's' : ''} · ${questionsPerScenario} questions/thème${selectedUc?.equipe ? ` · Équipe ${selectedUc.equipe}` : ''}`,
-          categorie: selectedUc?.equipe || companyConfig?.sector || 'Fondamentaux',
-          niveau: selectedUc?.niveau_risque === 'Élevé' ? 'advanced' : 'intermediate',
-          duree_min: count * questionsPerScenario * 2,
+          description: `${nbThemes} thème${nbThemes > 1 ? 's' : ''} · ${questionsPerScenario} questions/thème${equipe ? ` · Équipe ${equipe}` : ''}`,
+          categorie: equipe || companyConfig?.sector || 'Fondamentaux',
+          niveau: selectedUcs.some(uc => uc.niveau_risque === 'Élevé') ? 'advanced' : 'intermediate',
+          duree_min: nbThemes * questionsPerScenario * 2,
           personnalise: true,
           contenu: JSON.stringify(situations),
-          equipes_ciblees: selectedUc?.equipe || null,
+          equipes_ciblees: equipe || null,
         }),
       })
     } catch { /* silencieux */ }
@@ -1311,36 +1346,90 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
 
       <form onSubmit={handleGenerate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* Sélecteur de cas d'usage */}
-        {!prefillUsecase && (
-          <Field label="Cas d'usage ciblé (optionnel)" hint="Sans cas d'usage, l'IA génère un module de sensibilisation générale pour l'organisation.">
-            <select value={selectedUcId} onChange={e => setSelectedUcId(e.target.value)}
-              style={{ width: "100%", height: 44, border: `1px solid ${selectedUcId ? C.signal : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: selectedUcId ? C.ink : C.inkMute, outline: "none" }}>
-              <option value="">Aucun — sensibilisation générale à l'IA</option>
-              {(usecases || []).map(uc => (
-                <option key={uc.id} value={uc.id}>
-                  {uc.intitule} {uc.niveau_risque ? `(${uc.niveau_risque})` : ''} {uc.equipe ? `— ${uc.equipe}` : ''}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
-
-        {/* Résumé du cas d'usage sélectionné */}
-        {selectedUc && (
-          <div style={{ background: C.signalSoft, border: `1px solid ${C.signal}`, borderRadius: 11, padding: "12px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <Icon name="bulb" size={16} color={C.signal} />
-            <div style={{ fontSize: 13, color: C.ink, fontFamily: SANS, lineHeight: 1.5 }}>
-              <strong>{selectedUc.intitule}</strong>
-              {selectedUc.equipe && <> · Équipe <strong>{selectedUc.equipe}</strong></>}
-              {selectedUc.outil_ia && <> · Outil <strong>{selectedUc.outil_ia}</strong></>}
-              {selectedUc.niveau_risque && <> · Risque <strong>{selectedUc.niveau_risque}</strong></>}
+        {/* Multi-sélection de cas d'usage */}
+        <Field
+          label="Cas d'usage à inclure"
+          hint={allUsecases.length === 0
+            ? "Aucun cas d'usage — le module sera de sensibilisation générale."
+            : "Chaque cas d'usage sélectionné génère 1 thème dédié. Sans sélection → sensibilisation générale."
+          }
+        >
+          {/* Filtres rapides par équipe */}
+          {[...new Set(allUsecases.map(uc => uc.equipe).filter(Boolean))].length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10, alignItems: "center" }}>
+              <span style={{ fontFamily: MONO, fontSize: 11, color: C.inkMute }}>Équipes :</span>
+              {[...new Set(allUsecases.map(uc => uc.equipe).filter(Boolean))].map(team => {
+                const teamIds = allUsecases.filter(uc => uc.equipe === team).map(uc => String(uc.id))
+                const allChecked = teamIds.every(id => selectedUcIds.includes(id))
+                return (
+                  <button type="button" key={team} onClick={() => toggleTeam(team)}
+                    style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${allChecked ? C.signal : C.border}`,
+                      background: allChecked ? C.signalSoft : C.bg, cursor: "pointer", fontFamily: SANS, fontSize: 12,
+                      color: allChecked ? C.signal : C.ink, fontWeight: allChecked ? 700 : 400 }}>
+                    {team}
+                  </button>
+                )
+              })}
+              {selectedUcIds.length > 0 && (
+                <button type="button" onClick={() => setSelectedUcIds([])}
+                  style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg,
+                    cursor: "pointer", fontFamily: SANS, fontSize: 12, color: C.inkMute }}>
+                  Tout désélectionner
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Liste de cases à cocher */}
+          {(() => {
+            // Équipe verrouillée = équipe du premier UC coché (null si aucun coché)
+            const lockedTeam = selectedUcs.length > 0 ? (selectedUcs[0].equipe || null) : null
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+                {allUsecases.length === 0 ? (
+                  <div style={{ padding: "12px 14px", color: C.inkMute, fontSize: 13, fontFamily: SANS, background: C.bg, borderRadius: 8 }}>
+                    Créez d'abord des cas d'usage dans l'onglet dédié.
+                  </div>
+                ) : allUsecases.map(uc => {
+                  const checked = selectedUcIds.includes(String(uc.id))
+                  const blocked = !checked && lockedTeam !== null && (uc.equipe || null) !== lockedTeam
+                  return (
+                    <label key={uc.id} title={blocked ? `Réservé à l'équipe "${uc.equipe || 'sans équipe'}" — un module ne peut couvrir qu'une seule équipe` : undefined}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                        borderRadius: 9,
+                        background: checked ? C.signalSoft : blocked ? C.ph : C.bg,
+                        border: `1px solid ${checked ? C.signal : blocked ? C.border : C.border}`,
+                        cursor: blocked ? "not-allowed" : "pointer",
+                        opacity: blocked ? 0.45 : 1,
+                        userSelect: "none" }}>
+                      <input type="checkbox" checked={checked} disabled={blocked} onChange={() => !blocked && toggleUc(uc.id)}
+                        style={{ width: 16, height: 16, cursor: blocked ? "not-allowed" : "pointer", accentColor: C.signal }} />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: checked ? 600 : 400, color: blocked ? C.inkMute : C.ink }}>{uc.intitule}</span>
+                        <span style={{ fontFamily: MONO, fontSize: 11, color: C.inkMute, marginLeft: 8 }}>
+                          {uc.equipe && `${uc.equipe} · `}{uc.niveau_risque || ''}
+                        </span>
+                      </div>
+                      {uc.outil_ia && <Chip tone="default">{uc.outil_ia}</Chip>}
+                    </label>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
+          {/* Résumé sélection */}
+          {selectedUcs.length > 0 && (
+            <div style={{ marginTop: 8, padding: "8px 14px", borderRadius: 8, background: C.cyan,
+              fontFamily: MONO, fontSize: 12, color: C.night, display: "flex", alignItems: "center", gap: 8 }}>
+              <Icon name="check" size={14} color={C.night} />
+              {selectedUcs.length} cas d'usage · {selectedUcs.length} thème{selectedUcs.length > 1 ? 's' : ''} · {selectedUcs.length * questionsPerScenario} questions au total
+            </div>
+          )}
+        </Field>
 
         <div style={{ display: "flex", gap: 24 }}>
-          {numInput("Nombre de thèmes", count, setCount, 1, 5)}
+          {selectedUcs.length === 0 && numInput("Nombre de thèmes", count, setCount, 1, 5)}
           {numInput("Questions / thème", questionsPerScenario, setQuestionsPerScenario, 1, 10)}
         </div>
 
@@ -1369,7 +1458,12 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
 
         <button type="submit" disabled={loading} style={{ background: "none", border: "none", padding: 0, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
           <Btn kind="primary" size="lg" icon="brain" full>
-            {loading ? `Génération en cours…` : `Générer ${count} thème${count > 1 ? 's' : ''} (${count * questionsPerScenario} questions)`}
+            {loading
+              ? `Génération en cours…`
+              : selectedUcs.length > 0
+                ? `Générer ${selectedUcs.length} thème${selectedUcs.length > 1 ? 's' : ''} (${selectedUcs.length * questionsPerScenario} questions)`
+                : `Générer ${count} thème${count > 1 ? 's' : ''} (${count * questionsPerScenario} questions)`
+            }
           </Btn>
         </button>
       </form>

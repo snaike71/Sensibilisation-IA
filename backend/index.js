@@ -227,15 +227,23 @@ app.put('/api/modules/:id', auth, async (req, res) => {
 // DELETE /api/modules/:id
 app.delete('/api/modules/:id', auth, async (req, res) => {
   const { id } = req.params
+  const client = await pool.connect()
   try {
-    const { rowCount } = await pool.query(
+    await client.query('BEGIN')
+    // Détacher les sessions liées (historique conservé, lien supprimé)
+    await client.query('UPDATE sessions SET module_id = NULL WHERE module_id = $1', [id])
+    const { rowCount } = await client.query(
       'DELETE FROM modules WHERE id = $1 AND org_id = $2',
       [id, req.org.id]
     )
-    if (!rowCount) return res.status(404).json({ error: 'Module non trouvé' })
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Module non trouvé' }) }
+    await client.query('COMMIT')
     res.json({ ok: true })
   } catch (e) {
+    await client.query('ROLLBACK')
     res.status(500).json({ error: e.message })
+  } finally {
+    client.release()
   }
 })
 

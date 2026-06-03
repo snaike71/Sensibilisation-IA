@@ -153,9 +153,13 @@ export function useOllama() {
     abortRef.current = null
   }
 
-  async function generateSituations(config, count = 3, questionsPerScenario = 3, onProgress) {
+  // usecaseConfigs : tableau de configs (une par cas d'usage) pour génération multi-UC
+  // Si fourni, génère 1 thème par config ; sinon comportement normal (count thèmes depuis config)
+  async function generateSituations(config, count = 3, questionsPerScenario = 3, onProgress, usecaseConfigs = null) {
     abortRef.current = new AbortController()
     const signal = abortRef.current.signal
+
+    const totalThemes = usecaseConfigs ? usecaseConfigs.length : count
 
     setLoading(true)
     setError(null)
@@ -163,12 +167,13 @@ export function useOllama() {
     const usedCategories = []
 
     try {
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < totalThemes; i++) {
         if (signal.aborted) break
-        onProgress?.(i, count)
-        const prompt = buildSingleThemePrompt(config, i, count, questionsPerScenario, usedCategories)
+        onProgress?.(i, totalThemes)
+        const themeConfig = usecaseConfigs ? usecaseConfigs[i] : config
+        const prompt = buildSingleThemePrompt(themeConfig, i, totalThemes, questionsPerScenario, usedCategories)
         const genUrl = USE_PROXY ? apiUrl('/api/proxy/generate') : `${OLLAMA_URL}/api/generate`
-        const genHeaders = USE_PROXY ? API_HEADERS : OLLAMA_HEADERS
+        const genHeaders = USE_PROXY ? { ...API_HEADERS } : OLLAMA_HEADERS
 
         let situation = null
         let lastError = null
@@ -217,7 +222,7 @@ export function useOllama() {
         if (situation) results.push(situation)
       }
 
-      onProgress?.(count, count)
+      onProgress?.(totalThemes, totalThemes)
       return results.length > 0 ? results : null
     } catch (e) {
       if (e.name === 'AbortError') {
