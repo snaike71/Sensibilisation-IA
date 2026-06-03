@@ -262,19 +262,42 @@ app.get('/api/teams', auth, async (req, res) => {
 
 // POST /api/teams
 app.post('/api/teams', auth, async (req, res) => {
-  const { nom, description } = req.body
+  const { nom, description, roles } = req.body
   const prefix = (nom.replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || 'TEAM').padEnd(4, '0')
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const suffix = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
   const code_acces = `${prefix}-${suffix}`
   const { rows } = await pool.query(
-    `INSERT INTO teams (org_id, nom, code_acces, description) VALUES ($1,$2,$3,$4) RETURNING *`,
-    [req.org.id, nom, code_acces, description ?? '']
+    `INSERT INTO teams (org_id, nom, code_acces, description, roles) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [req.org.id, nom, code_acces, description ?? '', roles ?? []]
   )
   res.json(rows[0])
 })
 
+// PUT /api/teams/:id — mettre à jour description et rôles d'une équipe
+app.put('/api/teams/:id', auth, async (req, res) => {
+  const { description, roles } = req.body
+  try {
+    const { rows } = await pool.query(
+      `UPDATE teams SET
+         description = COALESCE($1, description),
+         roles = $2
+       WHERE id = $3 AND org_id = $4 RETURNING *`,
+      [description ?? null, roles ?? [], req.params.id, req.org.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Équipe non trouvée' })
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // DELETE /api/teams/:id
+app.get('/api/teams/:id/roles', async (req, res) => {
+  const { rows } = await pool.query('SELECT roles FROM teams WHERE id = $1', [req.params.id])
+  res.json(rows[0]?.roles ?? [])
+})
+
 app.get('/api/teams/:id/members', auth, async (req, res) => {
   const { rows } = await pool.query(
     'SELECT id, nom, email, role, xp, niveau FROM collaborators WHERE team_id = $1 AND org_id = $2 ORDER BY nom',
@@ -326,7 +349,7 @@ app.post('/api/join/check', async (req, res) => {
     if (collabs.length > 0) {
       return res.json({ found: true, collaborator: collabs[0], team: team.nom })
     }
-    res.json({ found: false, team: team.nom, team_id: team.id, org_id: team.org_id })
+    res.json({ found: false, team: team.nom, team_id: team.id, org_id: team.org_id, roles: team.roles ?? [] })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
@@ -390,6 +413,23 @@ app.get('/api/sessions', auth, async (req, res) => {
 })
 
 // GET /api/collaborators/:id — récupérer les infos d'un collaborateur
+app.put('/api/collaborators/:id', async (req, res) => {
+  const { nom, role } = req.body
+  try {
+    const { rows } = await pool.query(
+      `UPDATE collaborators SET
+         nom  = COALESCE($1, nom),
+         role = COALESCE($2, role)
+       WHERE id = $3 RETURNING *`,
+      [nom ?? null, role ?? null, req.params.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Collaborateur non trouvé' })
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.get('/api/collaborators/:id', async (req, res) => {
   const { id } = req.params
   try {

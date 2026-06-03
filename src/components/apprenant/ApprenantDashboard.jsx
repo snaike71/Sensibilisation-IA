@@ -56,16 +56,42 @@ function ModuleRow({ titre, categorie, duree_min, statut, idx, onStart }) {
 }
 
 export default function ApprenantDashboard({ onStartModule, onLogout }) {
-  const { collaborator, token } = useApp()
+  const { collaborator, token, setCollaborator } = useApp()
   const [sessions, setSessions] = useState([])
   const [assignedModules, setAssignedModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [showMenu, setShowMenu] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [editingField, setEditingField] = useState(null)
+  const [editValues, setEditValues] = useState({})
+  const [teamRoles, setTeamRoles] = useState([])
 
   const nomParts = (collaborator?.nom ?? '').trim().split(' ')
   const prenom = nomParts[0] ?? ''
   const nomFamille = nomParts.slice(1).join(' ')
+
+  const startEdit = (field, value) => {
+    setEditingField(field)
+    setEditValues(v => ({ ...v, [field]: value }))
+  }
+
+  const saveEdit = async (field) => {
+    setEditingField(null)
+    const val = editValues[field]?.trim()
+    if (!val || !collaborator?.id) return
+    const newPrenom = field === 'prenom' ? val : prenom
+    const newNom = field === 'nom' ? val : nomFamille
+    const newRole = field === 'role' ? val : (collaborator?.role ?? '')
+    const fullNom = `${newPrenom} ${newNom}`.trim()
+    try {
+      await fetch(apiUrl(`/api/collaborators/${collaborator.id}`), {
+        method: 'PUT',
+        headers: API_HEADERS,
+        body: JSON.stringify({ nom: fullNom, role: newRole }),
+      })
+      setCollaborator({ ...collaborator, nom: fullNom, role: newRole })
+    } catch { /* silencieux */ }
+  }
 
   useEffect(() => {
     if (token) {
@@ -162,7 +188,13 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
               <>
                 <div onClick={() => setShowMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
                 <div style={{ position: "absolute", top: 40, right: 0, background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.1)", zIndex: 20, minWidth: 160, overflow: "hidden" }}>
-                  <div onClick={() => { setShowMenu(false); setShowProfile(true) }}
+                  <div onClick={() => {
+              setShowMenu(false); setShowProfile(true)
+              if (collaborator?.team_id) {
+                fetch(apiUrl(`/api/teams/${collaborator.team_id}/roles`), { headers: API_HEADERS })
+                  .then(r => r.ok ? r.json() : []).then(setTeamRoles).catch(() => setTeamRoles([]))
+              }
+            }}
                     style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", fontFamily: SANS, fontSize: 13.5, color: C.ink, borderBottom: `1px solid ${C.border}` }}
                     onMouseEnter={e => e.currentTarget.style.background = C.bg}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -198,14 +230,51 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
-                { label: "Prénom", value: prenom },
-                { label: "Nom", value: nomFamille || '—' },
-                { label: "Adresse e-mail", value: collaborator?.email || '—' },
-                { label: "Équipe", value: collaborator?.teamName || '—' },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "12px 16px", background: C.bg, borderRadius: 11, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{value}</div>
+                { field: 'prenom', label: "Prénom", value: prenom, editable: true },
+                { field: 'nom', label: "Nom", value: nomFamille || '—', editable: true },
+                { field: 'email', label: "Adresse e-mail", value: collaborator?.email || '—', editable: false },
+                { field: 'role', label: "Rôle", value: collaborator?.role || '—', editable: true },
+                { field: 'equipe', label: "Équipe", value: collaborator?.teamName || '—', editable: false },
+              ].map(({ field, label, value, editable }) => (
+                <div key={field} style={{ padding: "12px 16px", background: C.bg, borderRadius: 11, border: `1px solid ${editingField === field ? C.signal : C.border}`, transition: "border-color 0.2s" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.05em", textTransform: "uppercase" }}>{label}</div>
+                    {editable && editingField !== field && (
+                      <div onClick={() => startEdit(field, value === '—' ? '' : value)} style={{ cursor: "pointer", opacity: 0.4, transition: "opacity 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                        onMouseLeave={e => e.currentTarget.style.opacity = 0.4}>
+                        <Icon name="pencil" size={13} color={C.inkSoft} />
+                      </div>
+                    )}
+                    {editable && editingField === field && (
+                      <div onClick={() => saveEdit(field)} style={{ cursor: "pointer", fontFamily: MONO, fontSize: 11, color: C.signal, fontWeight: 700 }}>✓</div>
+                    )}
+                  </div>
+                  {editable && editingField === field ? (
+                    field === 'role' && teamRoles.length > 0 ? (
+                      <select
+                        autoFocus
+                        value={editValues[field] ?? ''}
+                        onChange={e => setEditValues(v => ({ ...v, [field]: e.target.value }))}
+                        onBlur={() => saveEdit(field)}
+                        style={{ width: "100%", border: "none", background: "transparent", fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: C.ink, outline: "none", padding: 0, cursor: "pointer" }}
+                      >
+                        <option value="">— Sélectionner —</option>
+                        {teamRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        autoFocus
+                        value={editValues[field] ?? ''}
+                        onChange={e => setEditValues(v => ({ ...v, [field]: e.target.value }))}
+                        onBlur={() => saveEdit(field)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(field); if (e.key === 'Escape') setEditingField(null) }}
+                        style={{ width: "100%", border: "none", background: "transparent", fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: C.ink, outline: "none", padding: 0 }}
+                      />
+                    )
+                  ) : (
+                    <div style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{value}</div>
+                  )}
                 </div>
               ))}
             </div>

@@ -13,7 +13,8 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
   const [email, setEmail] = useState('')
   const [prenom, setPrenom] = useState('')
   const [nom, setNom] = useState('')
-  const [teamInfo, setTeamInfo] = useState(null) // { team, team_id, org_id }
+  const [role, setRole] = useState('')
+  const [teamInfo, setTeamInfo] = useState(null) // { team, team_id, org_id, roles }
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -48,7 +49,7 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
         setCollaborator({ ...data.collaborator, teamName: data.team })
         onSuccess()
       } else {
-        setTeamInfo({ team: data.team, team_id: data.team_id, org_id: data.org_id })
+        setTeamInfo({ team: data.team, team_id: data.team_id, org_id: data.org_id, roles: data.roles ?? [] })
         setStep('profile')
       }
     } catch (e) {
@@ -71,6 +72,7 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
           code: code.trim().toUpperCase(),
           nom: `${prenom.trim()} ${nom.trim()}`.trim(),
           email: email.trim(),
+          role: role || null,
         }),
       })
       const data = await res.json()
@@ -211,6 +213,16 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
               <div style={{ padding: "10px 16px", background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: SANS, fontSize: 13.5, color: C.inkSoft }}>
                 📧 {email}
               </div>
+              {teamInfo?.roles?.length > 0 && (
+                <select
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  style={{ width: "100%", height: 52, border: `1.5px solid ${role ? C.signal : C.border}`, borderRadius: 12, background: C.white, padding: "0 16px", fontFamily: SANS, fontSize: 15, color: role ? C.ink : C.inkMute, outline: "none", boxSizing: "border-box", cursor: "pointer" }}
+                >
+                  <option value="">Sélectionnez votre rôle…</option>
+                  {teamInfo.roles.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              )}
               {error && <p style={{ color: C.bad, fontSize: 12, fontFamily: MONO, marginTop: 4 }}>{error}</p>}
               <div style={{ marginTop: 6 }}>
                 <button type="submit" disabled={loading || !prenom || !nom} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "100%", opacity: (!prenom || !nom || loading) ? 0.5 : 1 }}>

@@ -61,13 +61,17 @@ function KpiCard({ label, value, suffix, delta, icon }) {
   return (
     <Card pad={18} hover style={{ flex: 1, minWidth: 160 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: C.signalSoft,
-          display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10, background: C.signalSoft,
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
           <Icon name={icon} size={19} color={C.signal} />
         </div>
         {delta && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontFamily: MONO,
-            fontSize: 11, fontWeight: 700, color: C.ok }}>▲ {delta}</span>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 3, fontFamily: MONO,
+            fontSize: 11, fontWeight: 700, color: C.ok
+          }}>▲ {delta}</span>
         )}
       </div>
       <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 32, marginTop: 16, letterSpacing: "-0.02em", color: C.ink }}>
@@ -99,7 +103,7 @@ function MaturityChart({ teams, sessions }) {
         </div>
         <Chip tone="cyan">{teams.length} équipe{teams.length > 1 ? 's' : ''}</Chip>
       </div>
-      
+
       {teams.length === 0 ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, color: C.inkMute, fontSize: 13, fontFamily: SANS }}>
           Aucune équipe créée pour le moment.
@@ -237,12 +241,12 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Modifier le cas d'usage</div>
           <Field label="Intitulé">
-            <Input placeholder="Intitulé" value={editDraft.intitule} onChange={e => setEditDraft({...editDraft, intitule: e.target.value})} />
+            <Input placeholder="Intitulé" value={editDraft.intitule} onChange={e => setEditDraft({ ...editDraft, intitule: e.target.value })} />
           </Field>
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <Field label="Équipe">
-                <select value={editDraft.equipe} onChange={e => setEditDraft({...editDraft, equipe: e.target.value})}
+                <select value={editDraft.equipe} onChange={e => setEditDraft({ ...editDraft, equipe: e.target.value })}
                   style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none" }}>
                   <option value="">Aucune équipe</option>
                   {(teams || []).map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
@@ -251,24 +255,24 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
             </div>
             <div style={{ flex: 1 }}>
               <Field label="Outil IA">
-                <select value={editDraft.outil_ia} onChange={e => setEditDraft({...editDraft, outil_ia: e.target.value})}
+                <select value={editDraft.outil_ia} onChange={e => setEditDraft({ ...editDraft, outil_ia: e.target.value })}
                   style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none" }}>
-                  {['ChatGPT','Claude','Gemini','Copilot','Mistral','Notion AI','Autre'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['ChatGPT', 'Claude', 'Gemini', 'Copilot', 'Mistral', 'Notion AI', 'Autre'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </Field>
             </div>
           </div>
           <Field label="Niveau de risque">
             <div style={{ display: "flex", gap: 8 }}>
-              {['Faible','Modéré','Élevé'].map(r => (
-                <div key={r} onClick={() => setEditDraft({...editDraft, niveau_risque: r})} style={{ cursor: "pointer" }}>
+              {['Faible', 'Modéré', 'Élevé'].map(r => (
+                <div key={r} onClick={() => setEditDraft({ ...editDraft, niveau_risque: r })} style={{ cursor: "pointer" }}>
                   <Chip sel={editDraft.niveau_risque === r}>{r}</Chip>
                 </div>
               ))}
             </div>
           </Field>
           <Field label="Description">
-            <textarea value={editDraft.description} onChange={e => setEditDraft({...editDraft, description: e.target.value})} rows={2}
+            <textarea value={editDraft.description} onChange={e => setEditDraft({ ...editDraft, description: e.target.value })} rows={2}
               style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "10px 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", resize: "none", boxSizing: "border-box" }} />
           </Field>
           <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
@@ -300,9 +304,9 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
 
 const catColors = {
   possibilite: { bg: '#e0f2fe', fg: '#0369a1' },
-  danger:      { bg: '#fee2e2', fg: '#dc2626' },
-  limite:      { bg: '#fef3c7', fg: '#d97706' },
-  cyber:       { bg: '#ede9fe', fg: '#7c3aed' },
+  danger: { bg: '#fee2e2', fg: '#dc2626' },
+  limite: { bg: '#fef3c7', fg: '#d97706' },
+  cyber: { bg: '#ede9fe', fg: '#7c3aed' },
 }
 
 function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, teams, token, onRefresh }) {
@@ -546,12 +550,17 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ teamId, name, desc, count, code, token, onCopy, onInvite, onDelete, onRefresh }) {
+function TeamCard({ teamId, name, desc, roles: initialRoles, count, code, token, onCopy, onInvite, onDelete, onRefresh }) {
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const [members, setMembers] = useState([])
   const [loadingMembers, setLoadingMembers] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editDesc, setEditDesc] = useState(desc || '')
+  const [editRoles, setEditRoles] = useState(initialRoles || [])
+  const [editRoleInput, setEditRoleInput] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -559,6 +568,19 @@ function TeamCard({ teamId, name, desc, count, code, token, onCopy, onInvite, on
       setTimeout(() => setCopied(false), 2000)
       if (onCopy) onCopy()
     })
+  }
+
+  const handleSaveEdit = async () => {
+    setSaving(true)
+    try {
+      await fetch(apiUrl(`/api/teams/${teamId}`), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ description: editDesc, roles: editRoles }),
+      })
+      setShowEdit(false)
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ } finally { setSaving(false) }
   }
 
   const handleViewMembers = async () => {
@@ -584,38 +606,96 @@ function TeamCard({ teamId, name, desc, count, code, token, onCopy, onInvite, on
         <div style={{ width: 52, height: 52, borderRadius: 13, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Icon name="users" size={24} color={C.night} />
         </div>
+        {/* Infos équipe + actions équipe */}
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{name}</div>
             <Chip tone="default">{count} collaborateurs</Chip>
           </div>
           {desc && <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 5, fontFamily: SANS }}>{desc}</div>}
-          <div onClick={handleViewMembers} style={{ marginTop: 8, display: "inline-flex" }}>
-            <Btn kind="ghost" size="sm" icon="users">{showMembers ? 'Masquer les membres' : 'Voir les membres'}</Btn>
-          </div>
-        </div>
-
-        {/* code d'accès */}
-        <div style={{ textAlign: "center" }} className="w-full md:w-auto">
-          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.inkMute, letterSpacing: "0.06em", marginBottom: 6 }}>CODE D'ACCÈS</div>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, letterSpacing: "0.14em", color: C.signal,
-            background: C.signalSoft, border: `1px dashed ${C.signal}`, borderRadius: 9, padding: "10px 18px" }}>{code}</div>
-        </div>
-
-        <div className="w-full md:w-auto" style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          <div onClick={handleCopy}>
-            <Btn kind="ghost" size="sm" icon="doc">{copied ? 'Copié ! ✓' : 'Copier'}</Btn>
-          </div>
-          <div onClick={onInvite}>
-            <Btn kind="ghost" size="sm" icon="send">Inviter</Btn>
-          </div>
-          {onDelete && (
-            <div onClick={() => setConfirmDelete(true)}>
-              <Btn kind="ghost" size="sm" icon="trash">Supprimer</Btn>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <div onClick={handleViewMembers}>
+              <Btn kind="ghost" size="sm" icon="users">{showMembers ? 'Masquer' : 'Voir les membres'}</Btn>
             </div>
-          )}
+            <div onClick={() => setShowEdit(v => !v)}>
+              <Btn kind="ghost" size="sm" icon="edit">{showEdit ? 'Annuler' : 'Modifier'}</Btn>
+            </div>
+            {onDelete && (
+              <div onClick={() => setConfirmDelete(true)}>
+                <Btn kind="ghost" size="sm" icon="trash">Supprimer</Btn>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Code d'accès + actions code */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }} className="w-full md:w-auto">
+          <div style={{ position: "relative" }}>
+            <div style={{ position: "absolute", top: -18, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.inkMute, letterSpacing: "0.06em", whiteSpace: "nowrap" }}>CODE D'ACCÈS</div>
+            <div style={{
+              fontFamily: MONO, fontWeight: 700, fontSize: 20, letterSpacing: "0.14em", color: C.signal,
+              background: C.signalSoft, border: `1px dashed ${C.signal}`, borderRadius: 9, padding: "10px 18px"
+            }}>{code}</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div onClick={handleCopy}>
+              <Btn kind="ghost" size="sm" icon="doc">{copied ? 'Copié ! ✓' : 'Copier'}</Btn>
+            </div>
+            <div onClick={onInvite}>
+              <Btn kind="ghost" size="sm" icon="send">Inviter</Btn>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Panel édition */}
+      {showEdit && (
+        <div style={{ marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.ink }}>Modifier l'équipe</div>
+
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 7 }}>Description</div>
+            <input
+              type="text"
+              value={editDesc}
+              onChange={e => setEditDesc(e.target.value)}
+              placeholder="Description de l'équipe…"
+              style={{ width: "100%", height: 42, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 7 }}>Rôles disponibles</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                type="text"
+                value={editRoleInput}
+                onChange={e => setEditRoleInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const r = editRoleInput.trim(); if (r && !editRoles.includes(r)) setEditRoles(v => [...v, r]); setEditRoleInput('') } }}
+                placeholder="Ajouter un rôle…"
+                style={{ flex: 1, height: 42, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", boxSizing: "border-box" }}
+              />
+              <button type="button" onClick={() => { const r = editRoleInput.trim(); if (r && !editRoles.includes(r)) setEditRoles(v => [...v, r]); setEditRoleInput('') }}
+                style={{ height: 42, width: 42, borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.inkSoft }}>+</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {editRoles.map(r => (
+                <span key={r} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 7, background: C.signalSoft, fontFamily: SANS, fontSize: 12.5, color: C.signal, fontWeight: 600 }}>
+                  {r}
+                  <span onClick={() => setEditRoles(v => v.filter(x => x !== r))} style={{ cursor: "pointer", fontWeight: 700 }}>×</span>
+                </span>
+              ))}
+              {editRoles.length === 0 && <span style={{ fontFamily: SANS, fontSize: 12.5, color: C.inkMute }}>Aucun rôle défini</span>}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={handleSaveEdit} disabled={saving} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", opacity: saving ? 0.5 : 1 }}>
+              <Btn kind="primary" size="sm">{saving ? 'Enregistrement…' : 'Enregistrer'}</Btn>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Panel membres */}
       {showMembers && (
@@ -631,8 +711,10 @@ function TeamCard({ teamId, name, desc, count, code, token, onCopy, onInvite, on
               </div>
               {members.map((m) => (
                 <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", background: C.bg, borderRadius: 9 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 32, background: C.night, display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.white, flexShrink: 0 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 32, background: C.night, display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.white, flexShrink: 0
+                  }}>
                     {m.nom ? m.nom.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -676,40 +758,40 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
   const userName = user?.name || "Administrateur"
 
   return (
-    <div style={{ 
-      width: 222, 
-      minHeight: "100vh", 
-      background: C.white, 
+    <div style={{
+      width: 222,
+      minHeight: "100vh",
+      background: C.white,
       borderRight: `1px solid ${C.border}`,
-      display: "flex", 
-      flexDirection: "column", 
+      display: "flex",
+      flexDirection: "column",
       flexShrink: 0,
       boxSizing: "border-box"
     }}>
       <div style={{ padding: "22px 20px 18px" }}>
         <Logo size={22} />
       </div>
-      
+
       <div style={{ height: 1, background: C.border, margin: "0 16px 14px" }} />
-      
+
       <nav style={{ display: "flex", flexDirection: "column", gap: 3, padding: "0 12px", flex: 1 }}>
         {items.map((it) => {
           const on = it.tab === activeTab
           return (
-            <div 
-              key={it.tab} 
+            <div
+              key={it.tab}
               onClick={() => setActiveTab(it.tab)}
-              className="nav-item" 
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
+              className="nav-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
                 gap: 11,
-                padding: "10px 12px", 
-                borderRadius: 9, 
+                padding: "10px 12px",
+                borderRadius: 9,
                 cursor: "pointer",
                 background: on ? C.signalSoft : "transparent",
-                color: on ? C.signal : C.inkSoft, 
-                fontWeight: on ? 700 : 500, 
+                color: on ? C.signal : C.inkSoft,
+                fontWeight: on ? 700 : 500,
                 fontSize: 13.5,
                 transition: "all 0.15s ease"
               }}
@@ -720,7 +802,7 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
           )
         })}
       </nav>
-      
+
       <div style={{ padding: 12, marginTop: "auto" }}>
         {/* Maturity Score */}
         <div style={{ background: C.cyan, borderRadius: 12, padding: "13px 14px" }}>
@@ -780,7 +862,7 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
 function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig }) {
   const totalCollaborators = teams.reduce((acc, t) => acc + (t.nb_collaborateurs || 0), 0)
   const modulesFollowedPct = totalCollaborators > 0 ? Math.round((sessions.length / totalCollaborators) * 100) : 0
-  
+
   const avgScore = sessions.length > 0
     ? Math.round((sessions.reduce((acc, s) => acc + (s.score / s.total_questions), 0) / sessions.length) * 100)
     : 0
@@ -796,20 +878,20 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
   // Parse recent activity items directly from sessions
   const activityItems = sessions.length > 0
     ? sessions.slice(0, 4).map(s => {
-        const who = s.collaborateur_nom || "Collaborateur"
-        const what = `a terminé « ${s.module_titre || 'Quiz'} » (${s.score}/${s.total_questions})`
-        const icon = s.score === s.total_questions ? "trophy" : "check"
-        const color = s.score === s.total_questions ? C.signal : C.inkMute
-        return [who, what, icon, color]
-      })
+      const who = s.collaborateur_nom || "Collaborateur"
+      const what = `a terminé « ${s.module_titre || 'Quiz'} » (${s.score}/${s.total_questions})`
+      const icon = s.score === s.total_questions ? "trophy" : "check"
+      const color = s.score === s.total_questions ? C.signal : C.inkMute
+      return [who, what, icon, color]
+    })
     : [["Aucune activité", "Aucun collaborateur n'a encore complété de module.", "users", C.inkMute]]
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <PageHead 
-        title="Vue d'ensemble" 
+      <PageHead
+        title="Vue d'ensemble"
         sub={`Pilotage de la sensibilisation IA — ${companyConfig?.companyName || 'Mon Organisation'}`}
-        actions={<><Btn kind="ghost" icon="doc">Exporter</Btn><Btn kind="primary" icon="rocket">Déployer</Btn></>} 
+        actions={<><Btn kind="ghost" icon="doc">Exporter</Btn><Btn kind="primary" icon="rocket">Déployer</Btn></>}
       />
 
       {/* KPIs Grid */}
@@ -821,8 +903,10 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
       </div>
 
       {/* Sombre banner */}
-      <div style={{ background: C.night, borderRadius: 16, padding: "26px 30px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", overflow: "hidden" }} className="flex-col md:flex-row gap-6">
+      <div style={{
+        background: C.night, borderRadius: 16, padding: "26px 30px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", overflow: "hidden"
+      }} className="flex-col md:flex-row gap-6">
         <div style={{ position: "absolute", right: -20, top: -30, opacity: .14 }}>
           <Mark size={200} color={C.cyan} />
         </div>
@@ -847,14 +931,16 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
       {/* Chart and activity */}
       <div className="flex flex-col lg:flex-row gap-4" style={{ alignItems: "stretch" }}>
         <MaturityChart teams={teams} sessions={sessions} />
-        
+
         <Card pad={22} style={{ flexShrink: 0 }} className="w-full lg:w-80">
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink, marginBottom: 16 }}>Activité récente</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {activityItems.map(([who, what, ic, col], i) => (
               <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: C.bg, border: `1px solid ${C.border}`,
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, background: C.bg, border: `1px solid ${C.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
                   <Icon name={ic} size={15} color={col} />
                 </div>
                 <div style={{ fontSize: 12.5, lineHeight: 1.4, color: C.ink, fontFamily: SANS }}>
@@ -914,25 +1000,25 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: C.ink }}>Nouveau cas d'usage</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Field label="Intitulé du cas d'usage">
-              <Input placeholder="Ex : Analyse de CV via IA" value={draft.intitule} onChange={e => setDraft({...draft, intitule: e.target.value})} />
+              <Input placeholder="Ex : Analyse de CV via IA" value={draft.intitule} onChange={e => setDraft({ ...draft, intitule: e.target.value })} />
             </Field>
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <Field label="Équipe concernée" hint={teamsOptions.length === 0 ? "Créez d'abord une équipe dans l'onglet Équipes." : ""}>
                   {teamsOptions.length > 0 ? (
-                    <select value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})}
+                    <select value={draft.equipe} onChange={e => setDraft({ ...draft, equipe: e.target.value })}
                       style={{ width: "100%", height: 44, border: `1px solid ${draft.equipe ? C.inkSoft : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: draft.equipe ? C.ink : C.inkMute, outline: "none" }}>
                       <option value="">Sélectionner une équipe…</option>
                       {teamsOptions.map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
                     </select>
                   ) : (
-                    <Input placeholder="Ex : RH, Commercial…" value={draft.equipe} onChange={e => setDraft({...draft, equipe: e.target.value})} />
+                    <Input placeholder="Ex : RH, Commercial…" value={draft.equipe} onChange={e => setDraft({ ...draft, equipe: e.target.value })} />
                   )}
                 </Field>
               </div>
               <div style={{ flex: 1 }}>
                 <Field label="Outil IA utilisé">
-                  <select value={draft.outil_ia} onChange={e => setDraft({...draft, outil_ia: e.target.value})}
+                  <select value={draft.outil_ia} onChange={e => setDraft({ ...draft, outil_ia: e.target.value })}
                     style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", appearance: "none" }}>
                     {AI_TOOLS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -942,14 +1028,14 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
             <Field label="Niveau de risque">
               <div style={{ display: "flex", gap: 8 }}>
                 {RISK_LEVELS.map(r => (
-                  <div key={r} onClick={() => setDraft({...draft, niveau_risque: r})} style={{ cursor: "pointer" }}>
+                  <div key={r} onClick={() => setDraft({ ...draft, niveau_risque: r })} style={{ cursor: "pointer" }}>
                     <Chip sel={draft.niveau_risque === r}>{r}</Chip>
                   </div>
                 ))}
               </div>
             </Field>
             <Field label="Description (optionnel)">
-              <textarea value={draft.description} onChange={e => setDraft({...draft, description: e.target.value})}
+              <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}
                 placeholder="Décrivez le contexte d'usage…" rows={2}
                 style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "10px 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", resize: "none", boxSizing: "border-box" }} />
             </Field>
@@ -1226,8 +1312,10 @@ function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUs
         {!showGenerate && (
           <div
             onClick={() => setShowGenerate(true)}
-            style={{ border: `2px dashed ${C.border}`, borderRadius: 14, padding: 20, display: "flex",
-              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minHeight: 200, cursor: "pointer" }}
+            style={{
+              border: `2px dashed ${C.border}`, borderRadius: 14, padding: 20, display: "flex",
+              flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, minHeight: 200, cursor: "pointer"
+            }}
           >
             <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Icon name="plus" size={22} color={C.night} />
@@ -1247,7 +1335,15 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
   const [formNom, setFormNom] = useState('')
   const [formDesc, setFormDesc] = useState('')
+  const [formRoles, setFormRoles] = useState([])
+  const [roleInput, setRoleInput] = useState('')
   const [creating, setCreating] = useState(false)
+
+  const handleAddRole = () => {
+    const r = roleInput.trim()
+    if (r && !formRoles.includes(r)) setFormRoles(v => [...v, r])
+    setRoleInput('')
+  }
 
   const handleDelete = async (teamId) => {
     try {
@@ -1267,17 +1363,14 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
       const res = await fetch(apiUrl('/api/teams'), {
         method: 'POST',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nom: formNom.trim(), description: formDesc.trim() }),
+        body: JSON.stringify({ nom: formNom.trim(), description: formDesc.trim(), roles: formRoles }),
       })
       if (!res.ok) throw new Error('API error')
-      setFormNom('')
-      setFormDesc('')
+      setFormNom(''); setFormDesc(''); setFormRoles([]); setRoleInput('')
       setShowForm(false)
       if (onTeamCreated) onTeamCreated()
     } catch {
-      // Fallback fallback visual team mock creation if offline or fail
-      setFormNom('')
-      setFormDesc('')
+      setFormNom(''); setFormDesc(''); setFormRoles([]); setRoleInput('')
       setShowForm(false)
       if (onTeamCreated) onTeamCreated()
     } finally {
@@ -1287,8 +1380,8 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <PageHead 
-        title="Équipes" 
+      <PageHead
+        title="Équipes"
         sub="Partagez un code d'accès pour rattacher les collaborateurs"
         actions={
           <div onClick={() => setShowForm((v) => !v)}>
@@ -1296,7 +1389,7 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
               {showForm ? 'Annuler' : 'Créer une équipe'}
             </Btn>
           </div>
-        } 
+        }
       />
 
       {/* Formulaire de création */}
@@ -1315,7 +1408,7 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
           }}
         >
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 16, color: C.ink }}>Nouvelle équipe</div>
-          
+
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Field label="Nom de l'équipe">
               <Input
@@ -1324,13 +1417,37 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
                 onChange={(e) => setFormNom(e.target.value)}
               />
             </Field>
-            
+
             <Field label="Description">
               <Input
                 placeholder="Ex : Force de vente terrain & grands comptes"
                 value={formDesc}
                 onChange={(e) => setFormDesc(e.target.value)}
               />
+            </Field>
+
+            <Field label="Rôles disponibles" hint="Appuyez sur Entrée ou cliquez + pour ajouter un rôle">
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Ex : Commercial, Développeur, RH…"
+                  value={roleInput}
+                  onChange={e => setRoleInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddRole() } }}
+                  style={{ flex: 1, height: 44, border: `1px solid ${roleInput ? C.inkSoft : C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none", boxSizing: "border-box" }}
+                />
+                <button type="button" onClick={handleAddRole} style={{ height: 44, width: 44, borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg, cursor: "pointer", fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.inkSoft }}>+</button>
+              </div>
+              {formRoles.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                  {formRoles.map(r => (
+                    <span key={r} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 7, background: C.signalSoft, fontFamily: SANS, fontSize: 12.5, color: C.signal, fontWeight: 600 }}>
+                      {r}
+                      <span onClick={() => setFormRoles(v => v.filter(x => x !== r))} style={{ cursor: "pointer", fontWeight: 700, color: C.signal }}>×</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </Field>
           </div>
 
@@ -1359,11 +1476,13 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
               teamId={team.id}
               name={team.nom}
               desc={team.description || ''}
+              roles={team.roles || []}
               count={team.nb_collaborateurs}
               code={team.code_acces}
               token={token}
               onInvite={() => alert(`Invitation envoyée pour l'équipe ${team.nom} !`)}
               onDelete={() => handleDelete(team.id)}
+              onRefresh={onRefresh}
             />
           ))}
         </div>
@@ -1438,24 +1557,24 @@ export default function AdminHub({ onBack, onGenerateModule }) {
   }
 
   return (
-    <div style={{ 
-      width: "100%", 
-      minHeight: "100vh", 
-      background: C.bg, 
-      fontFamily: SANS, 
-      color: C.ink, 
-      display: "flex" 
+    <div style={{
+      width: "100%",
+      minHeight: "100vh",
+      background: C.bg,
+      fontFamily: SANS,
+      color: C.ink,
+      display: "flex"
     }}>
       <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onBack={onBack} user={user} avgMaturity={avgMaturity} />
-      
+
       <div style={{ flex: 1, padding: "30px 36px", overflowY: "auto", boxSizing: "border-box" }} className="h-screen">
         {activeTab === 'dashboard' && (
-          <DashboardView 
-            setActiveTab={setActiveTab} 
-            teams={teams} 
-            usecases={usecases} 
-            sessions={sessions} 
-            companyConfig={companyConfig} 
+          <DashboardView
+            setActiveTab={setActiveTab}
+            teams={teams}
+            usecases={usecases}
+            sessions={sessions}
+            companyConfig={companyConfig}
           />
         )}
         {activeTab === 'usecases' && (
@@ -1479,9 +1598,9 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           />
         )}
         {activeTab === 'teams' && (
-          <TeamsView 
-            teams={teams} 
-            token={token} 
+          <TeamsView
+            teams={teams}
+            token={token}
             onTeamCreated={fetchData}
             onRefresh={fetchData}
           />
