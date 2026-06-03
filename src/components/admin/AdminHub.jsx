@@ -1439,7 +1439,7 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
             // Équipe verrouillée = équipe du premier UC coché (null si aucun coché)
             const lockedTeam = selectedUcs.length > 0 ? (selectedUcs[0].equipe || null) : null
             return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto", paddingRight: 4, scrollbarWidth: "thin", scrollbarColor: `${C.border} transparent` }}>
                 {allUsecases.length === 0 ? (
                   <div style={{ padding: "12px 14px", color: C.inkMute, fontSize: 13, fontFamily: SANS, background: C.bg, borderRadius: 8 }}>
                     Créez d'abord des cas d'usage dans l'onglet dédié.
