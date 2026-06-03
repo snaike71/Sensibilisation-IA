@@ -42,7 +42,7 @@ function buildSingleThemePrompt({ companyName, sector, size, tools, context, doc
 
   const exampleQuestions = typePlan.map((type, j) => {
     const qid = `1-${j + 1}`
-    if (type === 'drag') return `{"id":"${qid}","type":"drag","texte":"Décrivez une situation concrète.","bonneReponse":"ia","explication":"Explication courte."}`
+    if (type === 'drag') return `{"id":"${qid}","type":"drag","texte":"Un collaborateur copie un contrat client dans ChatGPT pour en faire un résumé.","bonneReponse":"humain","explication":"Les données contractuelles sont confidentielles et ne doivent pas quitter le SI."}`
     if (type === 'mcq') return `{"id":"${qid}","type":"mcq","texte":"Question à choix multiple ?","options":["Option A","Option B","Option C","Option D"],"bonneReponse":"B","explication":"Explication courte."}`
     return `{"id":"${qid}","type":"free","texte":"Question ouverte ?","modelAnswer":"Réponse idéale en 2-3 phrases.","explication":"Points clés."}`
   }).join(',\n    ')
@@ -60,7 +60,7 @@ Retourne UNIQUEMENT ce JSON (remplace le contenu par du vrai contenu lié à ${c
 ]}
 
 RÈGLES STRICTES :
-- drag : "bonneReponse" = "ia" ou "humain" uniquement, pas de champ "options"
+- drag : "texte" = une SITUATION CONCRÈTE à classer (phrase descriptive, PAS une question), "bonneReponse" = "ia" ou "humain" uniquement, pas de champ "options"
 - mcq : "options" = tableau de 4 chaînes, "bonneReponse" = "A", "B", "C" ou "D"
 - free : "modelAnswer" = réponse idéale, PAS de champ "bonneReponse"
 - Exactement ${questionsPerScenario} questions dans "questions"
