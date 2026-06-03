@@ -1093,20 +1093,40 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
   const [draft, setDraft] = useState({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
   const teamsOptions = teams || []
   const [saving, setSaving] = useState(false)
+  const [generatingReco, setGeneratingReco] = useState(false)
+  const { generateRecommendation } = useOllama()
 
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!draft.intitule.trim()) return
     setSaving(true)
     try {
-      await fetch(apiUrl('/api/usecases'), {
+      const res = await fetch(apiUrl('/api/usecases'), {
         method: 'POST',
         headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
         body: JSON.stringify(draft),
       })
+      const created = res.ok ? await res.json() : null
       setDraft({ intitule: '', equipe: '', outil_ia: 'ChatGPT', niveau_risque: 'Modéré', description: '' })
       setShowForm(false)
+      setSaving(false)
       if (onRefresh) onRefresh()
+
+      // Génération asynchrone de la recommandation IA (en arrière-plan)
+      if (created?.id) {
+        setGeneratingReco(true)
+        try {
+          const reco = await generateRecommendation(draft)
+          if (reco) {
+            await fetch(apiUrl(`/api/usecases/${created.id}`), {
+              method: 'PUT',
+              headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ recommandation: reco }),
+            })
+            if (onRefresh) onRefresh()
+          }
+        } catch { /* silencieux */ } finally { setGeneratingReco(false) }
+      }
     } catch { /* silencieux */ } finally { setSaving(false) }
   }
 
@@ -1121,6 +1141,15 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
           </div>
         }
       />
+
+      {/* Indicateur génération recommandation IA */}
+      {generatingReco && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 9,
+          background: C.signalSoft, border: `1px solid ${C.signal}`, fontFamily: MONO, fontSize: 12, color: C.signal }}>
+          <Icon name="brain" size={14} color={C.signal} />
+          L'IA génère une recommandation personnalisée…
+        </div>
+      )}
 
       {/* Formulaire d'ajout */}
       {showForm && (

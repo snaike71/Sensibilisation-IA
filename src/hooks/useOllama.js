@@ -240,6 +240,19 @@ export function useOllama() {
     }
   }
 
+  async function generateRecommendation({ intitule, outil_ia, niveau_risque, description, equipe }) {
+    const prompt = `Tu es expert en sensibilisation à l'IA en entreprise.
+Génère une recommandation courte (2 phrases maximum) pour sensibiliser une équipe${equipe ? ` ${equipe}` : ''} qui utilise ${outil_ia || 'un outil IA'} pour "${intitule}".
+Niveau de risque identifié : ${niveau_risque || 'Modéré'}.${description ? `\nContexte : ${description}` : ''}
+Réponds UNIQUEMENT avec la recommandation en français, sans titre, sans bullet point, sans JSON.`
+    try {
+      const result = await callOllama(prompt)
+      return result.trim().slice(0, 400) || null
+    } catch {
+      return null
+    }
+  }
+
   async function analyzeAnswer(questionTexte, modelAnswer, userAnswer) {
     setAnalyzing(true)
     try {
@@ -268,5 +281,5 @@ Réponds UNIQUEMENT avec le texte de l'évaluation, sans JSON, sans bullet point
     }
   }
 
-  return { generateSituations, analyzeAnswer, abortGeneration, loading, error, analyzing }
+  return { generateSituations, analyzeAnswer, generateRecommendation, abortGeneration, loading, error, analyzing }
 }
