@@ -110,7 +110,7 @@ app.put('/api/organisations', auth, async (req, res) => {
            maturite = COALESCE($4, maturite),
            statut_onboarding = COALESCE($5, statut_onboarding)
        WHERE id = $6
-       RETURNING id, nom, secteur, taille, outils_ia, maturite, statut_onboarding`,
+       RETURNING id, nom, email_admin, secteur, taille, outils_ia, maturite, statut_onboarding, plan`,
       [secteur, taille, outils_ia, maturite, statut_onboarding, req.org.id]
     )
     res.json(rows[0])
