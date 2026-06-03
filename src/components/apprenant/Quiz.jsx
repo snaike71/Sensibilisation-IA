@@ -132,6 +132,9 @@ export default function Quiz({ module, onFinish }) {
   const [activeId, setActiveId] = useState(null)
   const [dragResult, setDragResult] = useState(null) // { isCorrect }
 
+  // Review mode : { si, qi } = question précédente en lecture seule
+  const [reviewView, setReviewView] = useState(null)
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const totalQuestions = scenarios.reduce((sum, s) => sum + s.questions.length, 0)
@@ -143,6 +146,49 @@ export default function Quiz({ module, onFinish }) {
 
   const currentScore = Object.values(answers).filter(a => a.correct).length
   const currentPoints = currentScore * 100
+
+  // Calcule la position précédente dans la liste des questions
+  function getPrevPosition(si, qi) {
+    if (qi > 0) return { si, qi: qi - 1 }
+    if (si > 0) {
+      const prevS = scenarios[si - 1]
+      return { si: si - 1, qi: prevS.questions.length - 1 }
+    }
+    return null
+  }
+
+  function getNextPosition(si, qi) {
+    const s = scenarios[si]
+    if (qi < s.questions.length - 1) return { si, qi: qi + 1 }
+    if (si < scenarios.length - 1) return { si: si + 1, qi: 0 }
+    return null
+  }
+
+  const canGoBack = reviewView
+    ? !!getPrevPosition(reviewView.si, reviewView.qi)
+    : (phase === 'question' || phase === 'feedback') && questionNumber > 1
+
+  function handleGoBack() {
+    if (reviewView) {
+      const prev = getPrevPosition(reviewView.si, reviewView.qi)
+      if (prev) setReviewView(prev)
+    } else {
+      const prev = getPrevPosition(scenarioIdx, questionIdx)
+      if (prev) setReviewView(prev)
+    }
+  }
+
+  function handleReviewNext() {
+    if (!reviewView) return
+    const next = getNextPosition(reviewView.si, reviewView.qi)
+    const currentIsNext = next && next.si === scenarioIdx && next.qi === questionIdx
+    const nextIsAnswered = next && answers[scenarios[next.si]?.questions[next.qi]?.id]
+    if (!next || currentIsNext || !nextIsAnswered) {
+      setReviewView(null) // retour au quiz courant
+    } else {
+      setReviewView(next)
+    }
+  }
 
   async function submitAnswer(isCorrect, userText = null, chosen = null) {
     const newAnswers = { ...answers, [currentQuestion.id]: { correct: isCorrect, chosen } }
@@ -289,13 +335,20 @@ export default function Quiz({ module, onFinish }) {
         display: "flex", alignItems: "center", gap: 20, padding: "0 32px" }}>
         
         {/* Abandonner */}
-        <div 
+        <div
           onClick={() => onFinish(currentScore, scoreableQuestions)}
           style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
           title="Quitter le quiz"
         >
           <Icon name="x" size={20} color={C.inkSoft} />
         </div>
+
+        {/* Retour */}
+        {canGoBack && (
+          <div onClick={handleGoBack} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: MONO, fontSize: 11.5, color: C.inkSoft }} title="Question précédente">
+            <Icon name="chevL" size={16} color={C.inkSoft} />
+          </div>
+        )}
 
         {/* Barre de progression centrale */}
         <div style={{ flex: 1, position: "relative" }}>
@@ -577,6 +630,80 @@ export default function Quiz({ module, onFinish }) {
           ) : null}
         </DragOverlay>
       </DndContext>
+    )
+  }
+
+  // ── Mode révision : question précédente en lecture seule ──
+  if (reviewView) {
+    const revScenario = scenarios[reviewView.si]
+    const revQuestion = revScenario?.questions[reviewView.qi]
+    const revAnswer = revQuestion ? answers[revQuestion.id] : null
+    const revNumber = scenarios.slice(0, reviewView.si).reduce((sum, s) => sum + s.questions.length, 0) + reviewView.qi + 1
+    const catStyle = getCategorieStyle(revScenario?.categorie)
+    const hasPrev = !!getPrevPosition(reviewView.si, reviewView.qi)
+    const nextPos = getNextPosition(reviewView.si, reviewView.qi)
+    const nextIsAnswered = nextPos && answers[scenarios[nextPos.si]?.questions[nextPos.qi]?.id]
+    const canGoForward = nextPos && (nextPos.si !== scenarioIdx || nextPos.qi !== questionIdx) && nextIsAnswered
+
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: C.bg, display: "flex", flexDirection: "column", color: C.ink, fontFamily: SANS }}>
+        {/* Header */}
+        <div style={{ height: 60, borderBottom: `1px solid ${C.border}`, background: C.white, display: "flex", alignItems: "center", gap: 16, padding: "0 32px" }}>
+          {hasPrev && (
+            <div onClick={handleGoBack} style={{ cursor: "pointer" }} title="Question précédente">
+              <Icon name="chevL" size={20} color={C.inkSoft} />
+            </div>
+          )}
+          <div style={{ flex: 1 }}>
+            <Progress value={revNumber / totalQuestions} h={9} />
+          </div>
+          <span style={{ fontFamily: MONO, fontSize: 12.5, color: C.inkMute, fontWeight: 700 }}>Q{revNumber} / {totalQuestions}</span>
+          <div style={{ padding: "4px 10px", borderRadius: 7, background: C.warnBg, fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.warn }}>RÉVISION</div>
+          {canGoForward && (
+            <div onClick={handleReviewNext} style={{ cursor: "pointer" }}>
+              <Icon name="chevR" size={20} color={C.inkSoft} />
+            </div>
+          )}
+          <div onClick={() => setReviewView(null)} style={{ cursor: "pointer", padding: "6px 14px", borderRadius: 8, background: C.signalSoft, fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: C.signal }}>
+            Reprendre →
+          </div>
+        </div>
+
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 24px" }}>
+          <div style={{ width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Catégorie */}
+            <div style={{ display: "inline-flex", alignSelf: "flex-start", padding: "5px 14px", borderRadius: 8, background: catStyle.bg, color: catStyle.fg, fontFamily: MONO, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>
+              {categorieLabels[revScenario?.categorie] ?? revScenario?.categorie}
+            </div>
+
+            {/* Question */}
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink, lineHeight: 1.4 }}>
+              {revQuestion?.texte}
+            </div>
+
+            {/* Réponse donnée */}
+            {revAnswer && (
+              <div style={{ padding: "14px 18px", borderRadius: 12, background: revAnswer.correct ? C.okBg : revAnswer.correct === false ? C.badBg : C.bg, border: `1.5px solid ${revAnswer.correct ? C.ok : revAnswer.correct === false ? C.bad : C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+                <Icon name={revAnswer.correct ? "check" : revAnswer.correct === false ? "x" : "bulb"} size={18} color={revAnswer.correct ? C.ok : revAnswer.correct === false ? C.bad : C.inkMute} />
+                <div>
+                  <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: revAnswer.correct ? C.ok : revAnswer.correct === false ? C.bad : C.inkMute, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 3 }}>
+                    {revAnswer.correct ? 'Bonne réponse' : revAnswer.correct === false ? 'Mauvaise réponse' : 'Réponse libre'}
+                  </div>
+                  {revAnswer.chosen && <div style={{ fontFamily: SANS, fontSize: 13.5, color: C.ink }}>{revAnswer.chosen}</div>}
+                </div>
+              </div>
+            )}
+
+            {/* Explication */}
+            {revQuestion?.explication && (
+              <div style={{ padding: "14px 18px", borderRadius: 12, background: C.cyan, border: `1px solid ${C.cyanDeep}`, display: "flex", gap: 12 }}>
+                <Icon name="bulb" size={17} color={C.night} />
+                <div style={{ fontSize: 13.5, color: C.night, lineHeight: 1.5 }}>{revQuestion.explication}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     )
   }
 
