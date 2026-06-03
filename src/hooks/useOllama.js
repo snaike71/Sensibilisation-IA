@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL?.replace(/\/$/, '') || 'http://localhost:11434'
 const MODEL = 'gemma4:e2b'
@@ -146,8 +146,17 @@ export function useOllama() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const abortRef = useRef(null)
+
+  function abortGeneration() {
+    abortRef.current?.abort()
+    abortRef.current = null
+  }
 
   async function generateSituations(config, count = 3, questionsPerScenario = 3, onProgress) {
+    abortRef.current = new AbortController()
+    const signal = abortRef.current.signal
+
     setLoading(true)
     setError(null)
     const results = []
@@ -155,6 +164,7 @@ export function useOllama() {
 
     try {
       for (let i = 0; i < count; i++) {
+        if (signal.aborted) break
         onProgress?.(i, count)
         const prompt = buildSingleThemePrompt(config, i, count, questionsPerScenario, usedCategories)
         const genUrl = USE_PROXY ? apiUrl('/api/proxy/generate') : `${OLLAMA_URL}/api/generate`
@@ -165,11 +175,13 @@ export function useOllama() {
 
         // Jusqu'à 2 tentatives par thème
         for (let attempt = 0; attempt < 2; attempt++) {
+          if (signal.aborted) break
           try {
             const res = await fetch(genUrl, {
               method: 'POST',
               headers: genHeaders,
               body: JSON.stringify({ model: MODEL, prompt, stream: false, format: 'json' }),
+              signal,
             })
             if (!res.ok) throw new Error(`Ollama inaccessible (HTTP ${res.status})`)
             const data = await res.json()
@@ -196,17 +208,21 @@ export function useOllama() {
             usedCategories.push(raw.categorie)
             break
           } catch (e) {
+            if (e.name === 'AbortError') throw e
             lastError = e
           }
         }
 
-        if (!situation) throw new Error(`Thème ${i + 1} : génération échouée. ${lastError?.message ?? ''}`)
-        results.push(situation)
+        if (!situation && !signal.aborted) throw new Error(`Thème ${i + 1} : génération échouée. ${lastError?.message ?? ''}`)
+        if (situation) results.push(situation)
       }
 
       onProgress?.(count, count)
-      return results
+      return results.length > 0 ? results : null
     } catch (e) {
+      if (e.name === 'AbortError') {
+        return null
+      }
       if (e.name === 'TypeError' && e.message.includes('fetch')) {
         setError(`Impossible de contacter Ollama. Assurez-vous qu'Ollama est lancé et que le modèle ${MODEL} est disponible.`)
       } else {
@@ -215,6 +231,7 @@ export function useOllama() {
       return results.length > 0 ? results : null
     } finally {
       setLoading(false)
+      abortRef.current = null
     }
   }
 
@@ -246,5 +263,5 @@ Réponds UNIQUEMENT avec le texte de l'évaluation, sans JSON, sans bullet point
     }
   }
 
-  return { generateSituations, analyzeAnswer, loading, error, analyzing }
+  return { generateSituations, analyzeAnswer, abortGeneration, loading, error, analyzing }
 }

@@ -372,16 +372,16 @@ export default function Quiz({ module, onFinish }) {
                       ↓ Glissez la carte dans la bonne décision ↓
                     </p>
                     <div style={{ width: "100%", display: "flex", gap: 16 }}>
-                      <DropZone id="ia" label="Déléguer à l'IA" emoji="✅" colorClass="bg-[#0511f3]/5 border-[#0511f3]/25 text-[#0511f3]">
+                      <DropZone id="ia" label="Déléguer à l'IA" emoji="✅">
                         {Object.entries(answers).filter(([, a]) => a.chosen === 'ia').map(([id]) => {
                           const q = scenarios.flatMap(s => s.questions).find(q => String(q.id) === id)
-                          return q ? <div key={id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
+                          return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
                         })}
                       </DropZone>
-                      <DropZone id="humain" label="Garder en manuel" emoji="🧠" colorClass="bg-slate-50 border-slate-200 text-slate-600">
+                      <DropZone id="humain" label="Garder en manuel" emoji="🧠">
                         {Object.entries(answers).filter(([, a]) => a.chosen === 'humain').map(([id]) => {
                           const q = scenarios.flatMap(s => s.questions).find(q => String(q.id) === id)
-                          return q ? <div key={id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
+                          return q ? <div key={id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, color: C.inkSoft }}>{q.texte}</div> : null
                         })}
                       </DropZone>
                     </div>

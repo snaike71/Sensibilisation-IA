@@ -242,7 +242,11 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <Field label="Équipe">
-                <Input placeholder="Ex : RH, Commercial…" value={editDraft.equipe} onChange={e => setEditDraft({...editDraft, equipe: e.target.value})} />
+                <select value={editDraft.equipe} onChange={e => setEditDraft({...editDraft, equipe: e.target.value})}
+                  style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.white, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: C.ink, outline: "none" }}>
+                  <option value="">Aucune équipe</option>
+                  {(teams || []).map(t => <option key={t.id} value={t.nom}>{t.nom}</option>)}
+                </select>
               </Field>
             </div>
             <div style={{ flex: 1 }}>
@@ -361,7 +365,7 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
     }))
   }
 
-  const teamName = (teams || []).find(t => t.id === team || t.nom === team)?.nom || team
+  const teamName = team ? ((teams || []).find(t => t.id === team || t.nom === team)?.nom || team) : ''
 
   const subStyle = { background: C.white, border: `1px solid ${C.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "18px 20px" }
 
@@ -450,7 +454,7 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
           <select value={assignTeam} onChange={e => setAssignTeam(e.target.value)}
             style={{ width: "100%", height: 44, border: `1px solid ${C.border}`, borderRadius: 9, background: C.bg, padding: "0 14px", fontFamily: SANS, fontSize: 13.5, color: assignTeam ? C.ink : C.inkMute, outline: "none" }}>
             <option value="">Aucune équipe</option>
-            {(teams || []).map(t => <option key={t.id} value={t.id}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
+            {(teams || []).map(t => <option key={t.id} value={t.nom}>{t.nom} ({t.nb_collaborateurs} collaborateurs)</option>)}
           </select>
           <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
             <div onClick={() => setActivePanel(null)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
@@ -542,8 +546,9 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ name, desc, count, code, onCopy, onInvite }) {
+function TeamCard({ name, desc, count, code, onCopy, onInvite, onDelete }) {
   const [copied, setCopied] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -573,14 +578,31 @@ function TeamCard({ name, desc, count, code, onCopy, onInvite }) {
           background: C.signalSoft, border: `1px dashed ${C.signal}`, borderRadius: 9, padding: "10px 18px" }}>{code}</div>
       </div>
       
-      <div className="w-full md:w-auto" style={{ display: "flex", gap: 8, justifyStyle: "flex-end", justifyContent: "flex-end" }}>
+      <div className="w-full md:w-auto" style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
         <div onClick={handleCopy}>
           <Btn kind="ghost" size="sm" icon="doc">{copied ? 'Copié ! ✓' : 'Copier'}</Btn>
         </div>
         <div onClick={onInvite}>
           <Btn kind="ghost" size="sm" icon="send">Inviter</Btn>
         </div>
+        {onDelete && (
+          <div onClick={() => setConfirmDelete(true)}>
+            <Btn kind="ghost" size="sm" icon="trash">Supprimer</Btn>
+          </div>
+        )}
       </div>
+
+      {confirmDelete && (
+        <div style={{ width: "100%", marginTop: 10, padding: "12px 16px", background: C.badSoft || '#fff0f0', border: `1px solid ${C.bad}`, borderRadius: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: SANS, fontSize: 13, color: C.bad, flex: 1 }}>
+            Supprimer l'équipe <strong>{name}</strong> et ses {count} collaborateurs ?
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div onClick={() => setConfirmDelete(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
+            <div onClick={() => { setConfirmDelete(false); onDelete() }}><Btn kind="danger" size="sm" icon="trash">Confirmer</Btn></div>
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
@@ -922,7 +944,7 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
 
 function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, onSaved, onCancel }) {
   const { saveConfig } = useApp()
-  const { generateSituations, loading, error } = useOllama()
+  const { generateSituations, abortGeneration, loading, error } = useOllama()
 
   const [selectedUcId, setSelectedUcId] = useState(prefillUsecase?.id || '')
   const [count, setCount] = useState(2)
@@ -1013,7 +1035,7 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
           <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 17, color: C.ink }}>Générer un module IA</div>
           <div style={{ fontSize: 12.5, color: C.inkMute, marginTop: 3, fontFamily: SANS }}>L'IA crée des scénarios quiz à partir du profil de l'organisation et du cas d'usage.</div>
         </div>
-        <div onClick={onCancel}><Btn kind="ghost" size="sm" icon="x">Annuler</Btn></div>
+        <div onClick={() => { abortGeneration(); onCancel() }}><Btn kind="ghost" size="sm" icon="x">Annuler</Btn></div>
       </div>
 
       <form onSubmit={handleGenerate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1136,7 +1158,7 @@ function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUs
             desc={mod.description || "Module de sensibilisation à l'IA personnalisé."}
             level={mod.niveau}
             dur={`${mod.duree_min} min`}
-            team={mod.categorie}
+            team={mod.equipes_ciblees}
             contenu={mod.contenu}
             teams={teams}
             token={token}
@@ -1164,11 +1186,21 @@ function ModulesView({ modules, teams, usecases, token, companyConfig, pendingUs
 
 // ─── Teams View ───────────────────────────────────────────────────────────────
 
-function TeamsView({ teams, token, onTeamCreated }) {
+function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
   const [showForm, setShowForm] = useState(false)
   const [formNom, setFormNom] = useState('')
   const [formDesc, setFormDesc] = useState('')
   const [creating, setCreating] = useState(false)
+
+  const handleDelete = async (teamId) => {
+    try {
+      await fetch(apiUrl(`/api/teams/${teamId}`), {
+        method: 'DELETE',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+      })
+      if (onRefresh) onRefresh()
+    } catch { /* silencieux */ }
+  }
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -1268,10 +1300,11 @@ function TeamsView({ teams, token, onTeamCreated }) {
             <TeamCard 
               key={team.id} 
               name={team.nom}
-              desc={team.description || (team.nom === "Commercial" ? "Force de vente terrain & grands comptes" : team.nom === "RH" ? "Recrutement, paie & formation" : "Membres de l'équipe de sensibilisation.")}
+              desc={team.description || "Membres de l'équipe de sensibilisation."}
               count={team.nb_collaborateurs}
               code={team.code_acces}
               onInvite={() => alert(`Invitation envoyée pour l'équipe ${team.nom} !`)}
+              onDelete={() => handleDelete(team.id)}
             />
           ))}
         </div>
@@ -1390,7 +1423,8 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           <TeamsView 
             teams={teams} 
             token={token} 
-            onTeamCreated={fetchData} 
+            onTeamCreated={fetchData}
+            onRefresh={fetchData}
           />
         )}
       </div>

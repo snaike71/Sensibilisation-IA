@@ -10,9 +10,9 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
   const [loading, setLoading] = useState(false)
   const [codeFocused, setCodeFocused] = useState(false)
 
-  // Formater le code en AAAA-BBB ou AAAA-BBBB (supporte les deux formats)
+  // Formater le code en AAAA-BBB (format fixe 4+3)
   const formatCode = (val) => {
-    const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8)
+    const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 7)
     if (cleaned.length > 4) {
       return cleaned.slice(0, 4) + '-' + cleaned.slice(4)
     }
@@ -86,7 +86,7 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
             <input
               id="hidden-code-input"
               type="text"
-              maxLength={9}
+              maxLength={8}
               value={form.code}
               onFocus={() => setCodeFocused(true)}
               onBlur={() => setCodeFocused(false)}
@@ -96,7 +96,7 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
               }}
               style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%", zIndex: 10, caretColor: "transparent" }}
             />
-            {Array.from({ length: 9 }).map((_, i) => {
+            {Array.from({ length: 8 }).map((_, i) => {
               if (i === 4) {
                 return (
                   <div key={i} style={{ display: "flex", alignItems: "center", fontFamily: MONO, fontSize: 28, color: C.inkMute }}>—</div>
@@ -141,7 +141,7 @@ export default function JoinTeamScreen({ onSuccess, onBack }) {
           <div style={{ marginTop: 30, width: 300 }}>
             <button
               type="submit"
-              disabled={loading || form.code.length < 7}
+              disabled={loading || form.code.length < 8}
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "100%", opacity: (loading || form.code.length < 7) ? 0.5 : 1 }}
             >
               <Btn kind="primary" size="lg" icon="arrowR" full>

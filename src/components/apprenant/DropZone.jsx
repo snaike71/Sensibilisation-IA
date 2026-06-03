@@ -1,22 +1,51 @@
 import { useDroppable } from '@dnd-kit/core'
+import { C, MONO, SANS } from '../lhctrl-kit.jsx'
 
-export default function DropZone({ id, label, emoji, colorClass, children }) {
+const ZONE_STYLES = {
+  ia: {
+    bg: C.signalSoft,
+    border: C.signal,
+    labelColor: C.signal,
+  },
+  humain: {
+    bg: C.bg,
+    border: C.border,
+    labelColor: C.inkSoft,
+  },
+}
+
+export default function DropZone({ id, label, emoji, children }) {
   const { isOver, setNodeRef } = useDroppable({ id })
+  const style = ZONE_STYLES[id] || ZONE_STYLES.humain
 
   return (
     <div
       ref={setNodeRef}
-      className={`
-        flex-1 min-h-48 rounded-2xl border-2 border-dashed p-4 flex flex-col gap-3
-        transition-colors duration-200
-        ${colorClass}
-        ${isOver ? 'scale-[1.02] brightness-95' : ''}
-      `}
+      style={{
+        flex: 1,
+        minHeight: 160,
+        borderRadius: 14,
+        border: `2px dashed ${isOver ? style.labelColor : style.border}`,
+        background: isOver ? `${style.bg}cc` : style.bg,
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        transition: "all 0.2s ease",
+        transform: isOver ? "scale(1.02)" : "scale(1)",
+      }}
     >
-      <div className="text-center text-xl font-bold mb-1">
+      <div style={{
+        textAlign: "center",
+        fontFamily: MONO,
+        fontWeight: 700,
+        fontSize: 13,
+        color: style.labelColor,
+        marginBottom: 4,
+      }}>
         {emoji} {label}
       </div>
-      <div className="flex flex-col gap-2 min-h-8">
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 32 }}>
         {children}
       </div>
     </div>

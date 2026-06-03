@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
@@ -188,18 +189,19 @@ app.post('/api/modules', auth, async (req, res) => {
   res.json(rows[0])
 })
 
-// PUT /api/modules/:id — assigner un module à une équipe
+// PUT /api/modules/:id — mettre à jour un module
 app.put('/api/modules/:id', auth, async (req, res) => {
   const { id } = req.params
-  const { equipes_ciblees, titre, description } = req.body
+  const { equipes_ciblees, titre, description, contenu } = req.body
   try {
     const { rows } = await pool.query(
       `UPDATE modules
        SET equipes_ciblees = COALESCE($1, equipes_ciblees),
            titre = COALESCE($2, titre),
-           description = COALESCE($3, description)
-       WHERE id = $4 AND org_id = $5 RETURNING *`,
-      [equipes_ciblees, titre, description, id, req.org.id]
+           description = COALESCE($3, description),
+           contenu = COALESCE($4, contenu)
+       WHERE id = $5 AND org_id = $6 RETURNING *`,
+      [equipes_ciblees ?? null, titre ?? null, description ?? null, contenu ?? null, id, req.org.id]
     )
     if (!rows.length) return res.status(404).json({ error: 'Module non trouvé' })
     res.json(rows[0])
@@ -227,12 +229,17 @@ app.delete('/api/modules/:id', auth, async (req, res) => {
 app.get('/api/modules/team/:team_id', async (req, res) => {
   const { team_id } = req.params
   try {
+    // Récupérer le nom de l'équipe à partir de son ID
+    const teamRes = await pool.query('SELECT nom FROM teams WHERE id = $1 LIMIT 1', [team_id])
+    const teamNom = teamRes.rows[0]?.nom
+    if (!teamNom) return res.json([])
+
     const { rows } = await pool.query(
       `SELECT id, titre, code, description, categorie, niveau, duree_min, contenu, personnalise
        FROM modules
-       WHERE equipes_ciblees = $1 AND statut = 'active'
+       WHERE (equipes_ciblees = $1 OR equipes_ciblees = $2) AND statut = 'active'
        ORDER BY created_at DESC`,
-      [team_id]
+      [teamNom, team_id]
     )
     res.json(rows)
   } catch (e) {
@@ -263,6 +270,28 @@ app.post('/api/teams', auth, async (req, res) => {
     [req.org.id, nom, code_acces, description ?? '']
   )
   res.json(rows[0])
+})
+
+// DELETE /api/teams/:id
+app.delete('/api/teams/:id', auth, async (req, res) => {
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('DELETE FROM collaborators WHERE team_id = $1', [id])
+    const { rowCount } = await client.query(
+      'DELETE FROM teams WHERE id = $1 AND org_id = $2',
+      [id, req.org.id]
+    )
+    if (!rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Équipe non trouvée' }) }
+    await client.query('COMMIT')
+    res.json({ ok: true })
+  } catch (e) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ error: e.message })
+  } finally {
+    client.release()
+  }
 })
 
 // ─── Collaborateurs ───────────────────────────────────────────────────────────
