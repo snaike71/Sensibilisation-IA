@@ -246,9 +246,6 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
           </div>
           <div className="w-full md:w-auto" style={{ display: "flex", flexDirection: "column", gap: 9, alignItems: "stretch", minWidth: 168 }}>
             <div onClick={onGenerate}><Btn kind="primary" icon="brain" full>Générer module</Btn></div>
-            <div onClick={() => { setShowAssign(v => !v); setShowEdit(false); setConfirmDelete(false) }}>
-              <Btn kind="ghost" size="sm" icon="users" full>{showAssign ? 'Annuler' : team ? 'Changer équipe' : 'Assigner équipe'}</Btn>
-            </div>
             <div onClick={() => { setShowEdit(v => !v); setShowAssign(false); setConfirmDelete(false) }}>
               <Btn kind="ghost" size="sm" icon="edit" full>{showEdit ? 'Annuler' : 'Modifier'}</Btn>
             </div>
@@ -1156,8 +1153,10 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
 
       {/* Indicateur génération recommandation IA */}
       {generatingReco && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 9,
-          background: C.signalSoft, border: `1px solid ${C.signal}`, fontFamily: MONO, fontSize: 12, color: C.signal }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 9,
+          background: C.signalSoft, border: `1px solid ${C.signal}`, fontFamily: MONO, fontSize: 12, color: C.signal
+        }}>
           <Icon name="brain" size={14} color={C.signal} />
           L'IA génère une recommandation personnalisée…
         </div>
@@ -1416,17 +1415,21 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
                 const allChecked = teamIds.every(id => selectedUcIds.includes(id))
                 return (
                   <button type="button" key={team} onClick={() => toggleTeam(team)}
-                    style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${allChecked ? C.signal : C.border}`,
+                    style={{
+                      padding: "4px 11px", borderRadius: 6, border: `1px solid ${allChecked ? C.signal : C.border}`,
                       background: allChecked ? C.signalSoft : C.bg, cursor: "pointer", fontFamily: SANS, fontSize: 12,
-                      color: allChecked ? C.signal : C.ink, fontWeight: allChecked ? 700 : 400 }}>
+                      color: allChecked ? C.signal : C.ink, fontWeight: allChecked ? 700 : 400
+                    }}>
                     {team}
                   </button>
                 )
               })}
               {selectedUcIds.length > 0 && (
                 <button type="button" onClick={() => setSelectedUcIds([])}
-                  style={{ padding: "4px 11px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg,
-                    cursor: "pointer", fontFamily: SANS, fontSize: 12, color: C.inkMute }}>
+                  style={{
+                    padding: "4px 11px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.bg,
+                    cursor: "pointer", fontFamily: SANS, fontSize: 12, color: C.inkMute
+                  }}>
                   Tout désélectionner
                 </button>
               )}
@@ -1448,13 +1451,15 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
                   const blocked = !checked && lockedTeam !== null && (uc.equipe || null) !== lockedTeam
                   return (
                     <label key={uc.id} title={blocked ? `Réservé à l'équipe "${uc.equipe || 'sans équipe'}" — un module ne peut couvrir qu'une seule équipe` : undefined}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
                         borderRadius: 9,
                         background: checked ? C.signalSoft : blocked ? C.ph : C.bg,
                         border: `1px solid ${checked ? C.signal : blocked ? C.border : C.border}`,
                         cursor: blocked ? "not-allowed" : "pointer",
                         opacity: blocked ? 0.45 : 1,
-                        userSelect: "none" }}>
+                        userSelect: "none"
+                      }}>
                       <input type="checkbox" checked={checked} disabled={blocked} onChange={() => !blocked && toggleUc(uc.id)}
                         style={{ width: 16, height: 16, cursor: blocked ? "not-allowed" : "pointer", accentColor: C.signal }} />
                       <div style={{ flex: 1 }}>
@@ -1473,8 +1478,10 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
 
           {/* Résumé sélection */}
           {selectedUcs.length > 0 && (
-            <div style={{ marginTop: 8, padding: "8px 14px", borderRadius: 8, background: C.cyan,
-              fontFamily: MONO, fontSize: 12, color: C.night, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              marginTop: 8, padding: "8px 14px", borderRadius: 8, background: C.cyan,
+              fontFamily: MONO, fontSize: 12, color: C.night, display: "flex", alignItems: "center", gap: 8
+            }}>
               <Icon name="check" size={14} color={C.night} />
               {selectedUcs.length} cas d'usage · {selectedUcs.length} thème{selectedUcs.length > 1 ? 's' : ''} · {selectedUcs.length * questionsPerScenario} questions au total
             </div>

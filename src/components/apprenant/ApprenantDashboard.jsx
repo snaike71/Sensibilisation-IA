@@ -43,14 +43,20 @@ function ModuleRow({ titre, categorie, duree_min, statut, idx, onStart }) {
           <Chip icon="play">{duree_min} min</Chip>
         </div>
       </div>
-      {done ? <Chip tone="default" icon="check">Terminé</Chip>
-        : current ? (
+      {done ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Chip tone="default" icon="check">Terminé</Chip>
           <button onClick={onStart} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-            <Btn kind="primary" icon="play">Démarrer</Btn>
+            <Btn kind="ghost" size="sm" icon="play">Rejouer</Btn>
           </button>
-        ) : (
-          <Btn kind="ghost" state="disabled">Démarrer</Btn>
-        )}
+        </div>
+      ) : current ? (
+        <button onClick={onStart} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+          <Btn kind="primary" icon="play">Démarrer</Btn>
+        </button>
+      ) : (
+        <Btn kind="ghost" state="disabled">Démarrer</Btn>
+      )}
     </div>
   )
 }
@@ -126,19 +132,15 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   }, [collaborator?.team_id])
 
   const totalXP = collaborator?.xp ?? 0
-  const niveau = collaborator?.niveau ?? 1
-  
-  let xpLower = 0
-  let xpUpper = 100
-  if (niveau === 2) { xpLower = 100; xpUpper = 300 }
-  else if (niveau === 3) { xpLower = 300; xpUpper = 600 }
-  else if (niveau >= 4) { xpLower = 600; xpUpper = 1000 }
-  
-  const xpInLevel = Math.max(0, totalXP - xpLower)
-  const xpRange = xpUpper - xpLower
-  const xpProgress = Math.min(1, xpInLevel / xpRange)
 
-  const labelsMaturite = ['Émergent', 'Intermédiaire', 'Avancé', 'Expert']
+  // Niveau calculé depuis l'XP (pas depuis la BD qui n'est jamais mise à jour)
+  const XP_LEVELS = [0, 100, 300, 600, 1000]
+  const niveau = XP_LEVELS.findLastIndex(threshold => totalXP >= threshold) + 1
+  const xpLower = XP_LEVELS[niveau - 1] ?? 0
+  const xpUpper = XP_LEVELS[niveau] ?? XP_LEVELS[XP_LEVELS.length - 1]
+  const xpProgress = xpUpper > xpLower ? Math.min(1, (totalXP - xpLower) / (xpUpper - xpLower)) : 1
+
+  const labelsMaturite = ['Émergent', 'Intermédiaire', 'Avancé', 'Expert', 'Expert']
   const labelMaturite = labelsMaturite[niveau - 1] ?? 'Expert'
 
   // Uniquement les modules réellement assignés à l'équipe
@@ -169,7 +171,6 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   })
 
   const modulesTermines = completedModuleIds.size || sessions.length
-  const nbBadges = niveau >= 2 ? (niveau >= 3 ? 2 : 1) : 0
   const serie = sessions.length
 
   return (
@@ -308,15 +309,6 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
               </div>
             </div>
             
-            {/* Badges */}
-            <div style={{ display: "flex", gap: 10 }}>
-              {["flame", "target", "bolt", "star"].slice(0, Math.max(1, nbBadges + 1)).map((b, i) => (
-                <div key={i} style={{ width: 46, height: 46, borderRadius: 11, background: "rgba(255,255,255,.1)",
-                  border: "1px solid rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon name={b} size={20} color={C.cyan} />
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -324,7 +316,7 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           <StatCard icon="check" value={modulesTermines} label="Modules validés" />
           <StatCard icon="flame" value={serie > 0 ? `${serie} j` : "0 j"} label="Série en cours" tone="cyan" />
-          <StatCard icon="star" value={nbBadges} label="Badges obtenus" />
+          <StatCard icon="target" value={`${totalXP} XP`} label={`Niveau ${niveau} — ${labelMaturite}`} />
         </div>
 
         {/* Modules assignés */}

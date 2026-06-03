@@ -135,6 +135,7 @@ export default function Quiz({ module, onFinish }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const totalQuestions = scenarios.reduce((sum, s) => sum + s.questions.length, 0)
+  const scoreableQuestions = scenarios.reduce((sum, s) => sum + s.questions.filter(q => q.type !== 'free').length, 0)
   const answeredCount = Object.keys(answers).length
   const currentScenario = scenarios[scenarioIdx]
   const currentQuestion = currentScenario?.questions[questionIdx]
@@ -170,7 +171,7 @@ export default function Quiz({ module, onFinish }) {
     if (isLastQ && isLastS) {
       const finalAnswers = { ...answers, [currentQuestion.id]: { correct: answers[currentQuestion.id]?.correct ?? null } }
       const score = Object.values(finalAnswers).filter((a) => a.correct === true).length
-      onFinish(score, totalQuestions)
+      onFinish(score, scoreableQuestions)
     } else if (isLastQ) {
       setPhase('transition')
     } else {
@@ -289,7 +290,7 @@ export default function Quiz({ module, onFinish }) {
         
         {/* Abandonner */}
         <div 
-          onClick={() => onFinish(currentScore, totalQuestions)} 
+          onClick={() => onFinish(currentScore, scoreableQuestions)}
           style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
           title="Quitter le quiz"
         >
@@ -433,6 +434,14 @@ export default function Quiz({ module, onFinish }) {
             {/* FREE (Texte Libre avec Ollama) */}
             {isFree && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
+                {!isFeedbackPhase && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", background: C.signalSoft, borderRadius: 10, border: `1px solid ${C.signal}22` }}>
+                    <Icon name="brain" size={15} color={C.signal} />
+                    <span style={{ fontFamily: SANS, fontSize: 12.5, color: C.signal, lineHeight: 1.5 }}>
+                      Cette question n'est pas prise en compte dans le calcul des points. Elle sera analysée par l'IA pour vous apporter plus de précision si besoin.
+                    </span>
+                  </div>
+                )}
                 {!isFeedbackPhase ? (
                   <>
                     <textarea
