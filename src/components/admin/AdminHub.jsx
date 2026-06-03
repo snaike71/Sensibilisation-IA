@@ -134,6 +134,7 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
   const [assigning, setAssigning] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [recoExpanded, setRecoExpanded] = useState(false)
   const [editDraft, setEditDraft] = useState({ intitule: title, equipe: team || '', outil_ia: tool, niveau_risque: risk, description: desc })
   const [saving, setSaving] = useState(false)
 
@@ -196,11 +197,24 @@ function UseCaseCard({ ucId, title, risk, desc, team, tool, risks, reco, teams, 
               <Chip icon="bolt">{tool}</Chip>
               {risks.map((r) => <Chip key={r} tone="cyan">{r}</Chip>)}
             </div>
-            <div style={{ marginTop: 16, background: C.cyan, borderRadius: 11, padding: "13px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <div
+              onClick={() => setRecoExpanded(v => !v)}
+              style={{ marginTop: 16, background: C.cyan, borderRadius: 11, padding: "13px 16px", display: "flex", gap: 12, alignItems: "flex-start", cursor: "pointer" }}
+            >
               <Icon name="bulb" size={17} color={C.night} />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.night, letterSpacing: "0.04em" }}>RECOMMANDATION IA</div>
-                <div style={{ fontSize: 13, color: C.night, marginTop: 3, lineHeight: 1.45, fontFamily: SANS }}>{reco}</div>
+                <div style={{
+                  fontSize: 13, color: C.night, marginTop: 3, lineHeight: 1.45, fontFamily: SANS,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: recoExpanded ? "unset" : 1,
+                  WebkitBoxOrient: "vertical",
+                  textOverflow: recoExpanded ? "unset" : "ellipsis",
+                }}>{reco}</div>
+                {!recoExpanded && (
+                  <div style={{ fontSize: 11, color: C.night, opacity: 0.6, marginTop: 3, fontFamily: MONO }}>Cliquer pour voir plus</div>
+                )}
               </div>
             </div>
           </div>
