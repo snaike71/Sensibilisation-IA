@@ -322,7 +322,11 @@ export default function Quiz({ module, onFinish }) {
 
           {/* Carte de Question */}
           <Card pad={28} style={{ position: "relative" }}>
-            <H size={22} style={{ lineHeight: 1.35 }}>{currentQuestion.texte}</H>
+            <H size={22} style={{ lineHeight: 1.35 }}>
+              {isDrag
+                ? "Cette situation doit-elle être déléguée à l'IA ou gérée manuellement ?"
+                : currentQuestion.texte}
+            </H>
 
             {/* MCQ */}
             {isMcq && (
