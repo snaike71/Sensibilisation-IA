@@ -275,6 +275,14 @@ app.post('/api/teams', auth, async (req, res) => {
 })
 
 // DELETE /api/teams/:id
+app.get('/api/teams/:id/members', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT id, nom, email, role, xp, niveau FROM collaborators WHERE team_id = $1 AND org_id = $2 ORDER BY nom',
+    [req.params.id, req.org.id]
+  )
+  res.json(rows)
+})
+
 app.delete('/api/teams/:id', auth, async (req, res) => {
   const { id } = req.params
   const client = await pool.connect()

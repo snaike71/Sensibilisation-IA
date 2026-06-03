@@ -546,9 +546,12 @@ function ModuleCard({ moduleId, code, title, desc, level, dur, team, contenu, te
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ name, desc, count, code, onCopy, onInvite, onDelete }) {
+function TeamCard({ teamId, name, desc, count, code, token, onCopy, onInvite, onDelete, onRefresh }) {
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
+  const [members, setMembers] = useState([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -558,44 +561,97 @@ function TeamCard({ name, desc, count, code, onCopy, onInvite, onDelete }) {
     })
   }
 
+  const handleViewMembers = async () => {
+    if (showMembers) { setShowMembers(false); return }
+    setShowMembers(true)
+    setLoadingMembers(true)
+    try {
+      const res = await fetch(apiUrl(`/api/teams/${teamId}/members`), {
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setMembers(Array.isArray(data) ? data : [])
+    } catch {
+      setMembers([])
+    } finally {
+      setLoadingMembers(false)
+    }
+  }
+
   return (
-    <Card pad={20} hover style={{ position: "relative", display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }} className="flex-col md:flex-row">
-      <div style={{ width: 52, height: 52, borderRadius: 13, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <Icon name="users" size={24} color={C.night} />
-      </div>
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{name}</div>
-          <Chip tone="default">{count} collaborateurs</Chip>
+    <Card pad={20} hover style={{ position: "relative" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
+        <div style={{ width: 52, height: 52, borderRadius: 13, background: C.cyan, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon name="users" size={24} color={C.night} />
         </div>
-        <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 5, fontFamily: SANS }}>{desc}</div>
-      </div>
-      
-      {/* code d'accès */}
-      <div style={{ textAlign: "center" }} className="w-full md:w-auto">
-        <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.inkMute, letterSpacing: "0.06em", marginBottom: 6 }}>CODE D'ACCÈS</div>
-        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, letterSpacing: "0.14em", color: C.signal,
-          background: C.signalSoft, border: `1px dashed ${C.signal}`, borderRadius: 9, padding: "10px 18px" }}>{code}</div>
-      </div>
-      
-      <div className="w-full md:w-auto" style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-        <div onClick={handleCopy}>
-          <Btn kind="ghost" size="sm" icon="doc">{copied ? 'Copié ! ✓' : 'Copier'}</Btn>
-        </div>
-        <div onClick={onInvite}>
-          <Btn kind="ghost" size="sm" icon="send">Inviter</Btn>
-        </div>
-        {onDelete && (
-          <div onClick={() => setConfirmDelete(true)}>
-            <Btn kind="ghost" size="sm" icon="trash">Supprimer</Btn>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>{name}</div>
+            <Chip tone="default">{count} collaborateurs</Chip>
           </div>
-        )}
+          {desc && <div style={{ color: C.inkSoft, fontSize: 13, marginTop: 5, fontFamily: SANS }}>{desc}</div>}
+          <div onClick={handleViewMembers} style={{ marginTop: 8, display: "inline-flex" }}>
+            <Btn kind="ghost" size="sm" icon="users">{showMembers ? 'Masquer les membres' : 'Voir les membres'}</Btn>
+          </div>
+        </div>
+
+        {/* code d'accès */}
+        <div style={{ textAlign: "center" }} className="w-full md:w-auto">
+          <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.inkMute, letterSpacing: "0.06em", marginBottom: 6 }}>CODE D'ACCÈS</div>
+          <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 20, letterSpacing: "0.14em", color: C.signal,
+            background: C.signalSoft, border: `1px dashed ${C.signal}`, borderRadius: 9, padding: "10px 18px" }}>{code}</div>
+        </div>
+
+        <div className="w-full md:w-auto" style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          <div onClick={handleCopy}>
+            <Btn kind="ghost" size="sm" icon="doc">{copied ? 'Copié ! ✓' : 'Copier'}</Btn>
+          </div>
+          <div onClick={onInvite}>
+            <Btn kind="ghost" size="sm" icon="send">Inviter</Btn>
+          </div>
+          {onDelete && (
+            <div onClick={() => setConfirmDelete(true)}>
+              <Btn kind="ghost" size="sm" icon="trash">Supprimer</Btn>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Panel membres */}
+      {showMembers && (
+        <div style={{ marginTop: 16, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+          {loadingMembers ? (
+            <div style={{ fontFamily: SANS, fontSize: 13, color: C.inkMute }}>Chargement…</div>
+          ) : members.length === 0 ? (
+            <div style={{ fontFamily: SANS, fontSize: 13, color: C.inkMute }}>Aucun membre dans cette équipe.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.inkMute, letterSpacing: "0.04em", marginBottom: 4 }}>
+                MEMBRES ({members.length})
+              </div>
+              {members.map((m) => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", background: C.bg, borderRadius: 9 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 32, background: C.night, display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: MONO, fontSize: 11, fontWeight: 700, color: C.white, flexShrink: 0 }}>
+                    {m.nom ? m.nom.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 13.5, color: C.ink }}>{m.nom || '—'}</div>
+                    <div style={{ fontFamily: SANS, fontSize: 12, color: C.inkMute }}>{m.email || ''}{m.role ? ` · ${m.role}` : ''}</div>
+                  </div>
+                  <Chip tone="cyan">{m.xp} XP</Chip>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Confirmation suppression */}
       {confirmDelete && (
-        <div style={{ width: "100%", marginTop: 10, padding: "12px 16px", background: C.badSoft || '#fff0f0', border: `1px solid ${C.bad}`, borderRadius: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ marginTop: 12, padding: "12px 16px", background: '#fff0f0', border: `1px solid ${C.bad}`, borderRadius: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontFamily: SANS, fontSize: 13, color: C.bad, flex: 1 }}>
-            Supprimer l'équipe <strong>{name}</strong> et ses {count} collaborateurs ?
+            Supprimer <strong>{name}</strong> et ses {count} collaborateurs ?
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <div onClick={() => setConfirmDelete(false)}><Btn kind="ghost" size="sm">Annuler</Btn></div>
@@ -1298,12 +1354,14 @@ function TeamsView({ teams, token, onTeamCreated, onRefresh }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {teams.map((team) => (
-            <TeamCard 
-              key={team.id} 
+            <TeamCard
+              key={team.id}
+              teamId={team.id}
               name={team.nom}
-              desc={team.description || "Membres de l'équipe de sensibilisation."}
+              desc={team.description || ''}
               count={team.nb_collaborateurs}
               code={team.code_acces}
+              token={token}
               onInvite={() => alert(`Invitation envoyée pour l'équipe ${team.nom} !`)}
               onDelete={() => handleDelete(team.id)}
             />
