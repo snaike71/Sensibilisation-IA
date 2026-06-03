@@ -240,6 +240,20 @@ export function useOllama() {
     }
   }
 
+  async function generateRisques({ intitule, outil_ia, niveau_risque, description }) {
+    const prompt = `Tu es expert en risques IA en entreprise.
+Pour ce cas d'usage : "${intitule}" utilisant ${outil_ia || 'un outil IA'} (niveau de risque : ${niveau_risque || 'Modéré'})${description ? `, contexte : ${description}` : ''}.
+Liste entre 3 et 5 mots-clés de risques très courts (1-2 mots chacun, ex: RGPD, Biais, Désinformation, Confidentialité, Hallucination).
+Réponds UNIQUEMENT avec les mots-clés séparés par des virgules, sans phrase, sans explication.`
+    try {
+      const result = await callOllama(prompt)
+      const tags = result.split(',').map(t => t.trim().replace(/[.\n"']/g, '')).filter(Boolean).slice(0, 5)
+      return tags.length > 0 ? tags : null
+    } catch {
+      return null
+    }
+  }
+
   async function generateRecommendation({ intitule, outil_ia, niveau_risque, description, equipe }) {
     const prompt = `Tu es expert en sensibilisation à l'IA en entreprise.
 Génère une recommandation courte (2 phrases maximum) pour sensibiliser une équipe${equipe ? ` ${equipe}` : ''} qui utilise ${outil_ia || 'un outil IA'} pour "${intitule}".
@@ -281,5 +295,5 @@ Réponds UNIQUEMENT avec le texte de l'évaluation, sans JSON, sans bullet point
     }
   }
 
-  return { generateSituations, analyzeAnswer, generateRecommendation, abortGeneration, loading, error, analyzing }
+  return { generateSituations, analyzeAnswer, generateRecommendation, generateRisques, abortGeneration, loading, error, analyzing }
 }

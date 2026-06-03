@@ -1108,7 +1108,7 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
   const teamsOptions = teams || []
   const [saving, setSaving] = useState(false)
   const [generatingReco, setGeneratingReco] = useState(false)
-  const { generateRecommendation } = useOllama()
+  const { generateRecommendation, generateRisques } = useOllama()
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -1126,16 +1126,22 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
       setSaving(false)
       if (onRefresh) onRefresh()
 
-      // Génération asynchrone de la recommandation IA (en arrière-plan)
+      // Génération asynchrone recommandation + tags de risques en parallèle
       if (created?.id) {
         setGeneratingReco(true)
         try {
-          const reco = await generateRecommendation(draft)
-          if (reco) {
+          const [reco, risques] = await Promise.all([
+            generateRecommendation(draft),
+            generateRisques(draft),
+          ])
+          const payload = {}
+          if (reco) payload.recommandation = reco
+          if (risques) payload.risques = risques
+          if (Object.keys(payload).length > 0) {
             await fetch(apiUrl(`/api/usecases/${created.id}`), {
               method: 'PUT',
               headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ recommandation: reco }),
+              body: JSON.stringify(payload),
             })
             if (onRefresh) onRefresh()
           }
@@ -1228,7 +1234,12 @@ function UseCasesView({ usecases, teams, onGenerateModule, token, onRefresh }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {usecases.map((uc) => {
-            const risks = uc.risques || (uc.niveau_risque === 'Élevé' ? ["Biais", "RGPD", "Discrimination"] : ["Fuite de données", "Confidentialité"])
+            const rawRisques = uc.risques
+            const risks = Array.isArray(rawRisques) && rawRisques.length > 0
+              ? rawRisques
+              : typeof rawRisques === 'string' && rawRisques.trim()
+                ? rawRisques.split(',').map(r => r.trim()).filter(Boolean)
+                : (uc.niveau_risque === 'Élevé' ? ["Biais", "RGPD", "Discrimination"] : ["Fuite de données", "Confidentialité"])
             return (
               <UseCaseCard
                 key={uc.id}

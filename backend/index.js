@@ -144,7 +144,7 @@ app.post('/api/usecases', auth, async (req, res) => {
 // PUT /api/usecases/:id — mettre à jour un cas d'usage (ex: assigner une équipe)
 app.put('/api/usecases/:id', auth, async (req, res) => {
   const { id } = req.params
-  const { intitule, equipe, outil_ia, niveau_risque, description, recommandation } = req.body
+  const { intitule, equipe, outil_ia, niveau_risque, description, recommandation, risques } = req.body
   try {
     const { rows } = await pool.query(
       `UPDATE usecases
@@ -153,9 +153,10 @@ app.put('/api/usecases/:id', auth, async (req, res) => {
            outil_ia = COALESCE($3, outil_ia),
            niveau_risque = COALESCE($4, niveau_risque),
            description = COALESCE($5, description),
-           recommandation = COALESCE($6, recommandation)
+           recommandation = COALESCE($6, recommandation),
+           risques = COALESCE($9, risques)
        WHERE id = $7 AND org_id = $8 RETURNING *`,
-      [intitule, equipe, outil_ia, niveau_risque, description, recommandation, id, req.org.id]
+      [intitule, equipe, outil_ia, niveau_risque, description, recommandation, id, req.org.id, risques ?? null]
     )
     if (!rows.length) return res.status(404).json({ error: 'Cas d\'usage non trouvé' })
     res.json(rows[0])
