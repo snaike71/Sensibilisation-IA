@@ -1009,6 +1009,7 @@ function GenerateModulePanel({ token, companyConfig, usecases, prefillUsecase, o
           duree_min: count * questionsPerScenario * 2,
           personnalise: true,
           contenu: JSON.stringify(situations),
+          equipes_ciblees: selectedUc?.equipe || null,
         }),
       })
     } catch { /* silencieux */ }
