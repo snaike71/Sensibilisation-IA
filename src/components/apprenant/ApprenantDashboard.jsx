@@ -60,6 +60,12 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   const [sessions, setSessions] = useState([])
   const [assignedModules, setAssignedModules] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+
+  const nomParts = (collaborator?.nom ?? '').trim().split(' ')
+  const prenom = nomParts[0] ?? ''
+  const nomFamille = nomParts.slice(1).join(' ')
 
   useEffect(() => {
     if (token) {
@@ -148,11 +154,64 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
         <Logo size={20} />
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <Icon name="bell" size={19} color={C.inkSoft} />
-          <div onClick={onLogout} style={{ cursor: "pointer" }} title="Quitter">
-            <Avatar size={32} label={getInitials(collaborator?.nom)} color={C.signal} />
+          <div style={{ position: "relative" }}>
+            <div onClick={() => setShowMenu(v => !v)} style={{ cursor: "pointer" }}>
+              <Avatar size={32} label={getInitials(collaborator?.nom)} color={C.signal} />
+            </div>
+            {showMenu && (
+              <>
+                <div onClick={() => setShowMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 10 }} />
+                <div style={{ position: "absolute", top: 40, right: 0, background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.1)", zIndex: 20, minWidth: 160, overflow: "hidden" }}>
+                  <div onClick={() => { setShowMenu(false); setShowProfile(true) }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", fontFamily: SANS, fontSize: 13.5, color: C.ink, borderBottom: `1px solid ${C.border}` }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.bg}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <Icon name="user" size={15} color={C.inkSoft} />
+                    Profil
+                  </div>
+                  <div onClick={() => { setShowMenu(false); onLogout() }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", fontFamily: SANS, fontSize: 13.5, color: C.bad }}
+                    onMouseEnter={e => e.currentTarget.style.background = C.bg}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <Icon name="x" size={15} color={C.bad} />
+                    Déconnexion
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Modal Profil */}
+      {showProfile && (
+        <div onClick={() => setShowProfile(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 20, padding: 32, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+              <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 18, color: C.ink }}>Mon profil</div>
+              <div onClick={() => setShowProfile(false)} style={{ cursor: "pointer", color: C.inkMute }}>
+                <Icon name="x" size={18} color={C.inkMute} />
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+              <Avatar size={72} label={getInitials(collaborator?.nom)} color={C.signal} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {[
+                { label: "Prénom", value: prenom },
+                { label: "Nom", value: nomFamille || '—' },
+                { label: "Adresse e-mail", value: collaborator?.email || '—' },
+                { label: "Équipe", value: collaborator?.teamName || '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ padding: "12px 16px", background: C.bg, borderRadius: 11, border: `1px solid ${C.border}` }}>
+                  <div style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: C.inkMute, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontFamily: SANS, fontSize: 14.5, fontWeight: 600, color: C.ink }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px", display: "flex", flexDirection: "column", gap: 22 }}>
         
