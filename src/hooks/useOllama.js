@@ -273,17 +273,16 @@ Réponds UNIQUEMENT avec la recommandation en français, sans titre, sans bullet
       const prompt = `Tu es un expert en sensibilisation à l'IA en entreprise. Évalue la réponse d'un employé.
 
 Question posée : "${questionTexte}"
-
 Réponse de l'employé : "${userAnswer}"
-
 Réponse de référence : "${modelAnswer}"
 
-Donne une évaluation courte (3-4 phrases maximum) en français :
-- Commence par un jugement global (ex: "Bonne intuition", "Réponse partielle", "Réflexe correct"...)
-- Cite ce qui est juste dans la réponse de l'employé
-- Indique ce qui manque ou pourrait être amélioré
-- Termine par un conseil concret
+Rédige une évaluation personnalisée en 3-4 phrases en français :
+1. Un jugement honnête et varié selon la qualité réelle de la réponse (ni trop sévère, ni trop indulgent)
+2. Ce que l'employé a bien compris dans sa réponse
+3. Ce qui manque ou mériterait d'être approfondi
+4. Un conseil concret et actionnable
 
+IMPORTANT : Base-toi uniquement sur le contenu de la réponse. Ne commence PAS systématiquement par "Réponse partielle".
 Réponds UNIQUEMENT avec le texte de l'évaluation, sans JSON, sans bullet points, sans titre.`
 
       const result = await callOllama(prompt)

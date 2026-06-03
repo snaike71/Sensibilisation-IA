@@ -176,6 +176,10 @@ export default function Quiz({ module, onFinish }) {
     } else {
       setQuestionIdx((i) => i + 1)
       setPhase('question')
+      setFreeText('')
+      setAiAnalysis(null)
+      setMcqSelected(null)
+      setDragResult(null)
     }
   }
 
@@ -260,7 +264,7 @@ export default function Quiz({ module, onFinish }) {
               </div>
             )}
             
-            <div onClick={() => { setScenarioIdx(i => i + 1); setQuestionIdx(0); setPhase('intro') }}>
+            <div onClick={() => { setScenarioIdx(i => i + 1); setQuestionIdx(0); setPhase('intro'); setFreeText(''); setAiAnalysis(null); setMcqSelected(null); setDragResult(null) }}>
               <Btn kind="primary" size="lg" icon="arrowR" full>
                 Passer au scénario suivant
               </Btn>
