@@ -181,10 +181,10 @@ app.post('/api/modules', auth, async (req, res) => {
   const { titre, description, categorie, niveau, duree_min, equipes_ciblees, contenu, personnalise } = req.body
   const code = `MODULE_${Date.now().toString().slice(-4)}`
   const { rows } = await pool.query(
-    `INSERT INTO modules (org_id, titre, code, description, categorie, niveau, duree_min, equipes_ciblees, contenu, personnalise)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    `INSERT INTO modules (org_id, titre, code, description, categorie, niveau, duree_min, equipes_ciblees, contenu, personnalise, statut)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
     [req.org.id, titre, code, description, categorie ?? 'Fondamentaux', niveau ?? 'intermediate',
-     duree_min ?? 12, equipes_ciblees, contenu, personnalise ?? false]
+     duree_min ?? 12, equipes_ciblees, contenu, personnalise ?? false, 'active']
   )
   res.json(rows[0])
 })
@@ -237,7 +237,7 @@ app.get('/api/modules/team/:team_id', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT id, titre, code, description, categorie, niveau, duree_min, contenu, personnalise
        FROM modules
-       WHERE (equipes_ciblees = $1 OR equipes_ciblees = $2) AND statut = 'active'
+       WHERE (equipes_ciblees = $1 OR equipes_ciblees = $2) AND (statut = 'active' OR statut IS NULL)
        ORDER BY created_at DESC`,
       [teamNom, team_id]
     )
