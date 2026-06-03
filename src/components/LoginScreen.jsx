@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { apiUrl, API_HEADERS } from '../utils/api.js'
-import { C, MONO, SANS, Logo, Icon, Btn, Card, Kicker, H } from './lhctrl-kit.jsx'
+import { C, MONO, SANS, Logo, Icon, Btn, Card, Kicker, H, WaveBg } from './lhctrl-kit.jsx'
 
 function Field({ label, children }) {
   return (
@@ -89,6 +89,7 @@ export default function LoginScreen({ onSuccess, onBack }) {
       fontFamily: SANS,
       position: 'relative',
     }}>
+      <WaveBg />
       {/* Bouton retour */}
       {onBack && (
         <button
@@ -99,7 +100,7 @@ export default function LoginScreen({ onSuccess, onBack }) {
             background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: MONO, fontSize: 11.5, color: C.inkMute,
             display: 'flex', alignItems: 'center', gap: 6,
-            transition: 'color 0.15s',
+            transition: 'color 0.15s', zIndex: 1,
           }}
           onMouseEnter={(e) => e.currentTarget.style.color = C.inkSoft}
           onMouseLeave={(e) => e.currentTarget.style.color = C.inkMute}
@@ -110,12 +111,12 @@ export default function LoginScreen({ onSuccess, onBack }) {
       )}
 
       {/* Logo */}
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 32, position: 'relative', zIndex: 1 }}>
         <Logo size={28} />
       </div>
 
       {/* Card */}
-      <Card pad={36} style={{ width: '100%', maxWidth: 420 }}>
+      <Card pad={36} style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <Kicker color={C.signal} style={{ marginBottom: 8 }}>

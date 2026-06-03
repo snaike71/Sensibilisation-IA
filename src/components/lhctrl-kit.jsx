@@ -254,6 +254,27 @@ export function Icon({ name, size = 18, color = "currentColor", strokeWidth = 1.
   );
 }
 
+/* ---------- Fond vagues concentriques ---------- */
+
+export function WaveBg() {
+  const rings = [
+    [150, 0.45], [300, 0.38], [450, 0.30], [600, 0.22],
+    [750, 0.17], [900, 0.12], [1050, 0.09], [1200, 0.06],
+  ];
+  const gradients = rings.map(
+    ([r, a]) =>
+      `radial-gradient(circle at center, transparent ${r}px, rgba(196,237,241,${a}) ${r + 1}px, rgba(196,237,241,${a}) ${r + 3}px, transparent ${r + 4}px)`
+  );
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0,
+      width: "100vw", height: "100vh",
+      pointerEvents: "none", zIndex: 0,
+      backgroundImage: gradients.join(", "),
+    }} />
+  );
+}
+
 Object.assign(window, {
   C, MONO, SANS, Mark, Logo, ImgPH, Avatar, Lines, Btn, Chip, RiskBadge,
   Card, Anno, ReuseTag, Progress, Kicker, H, Icon, HATCH,
