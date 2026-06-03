@@ -306,6 +306,32 @@ app.delete('/api/teams/:id', auth, async (req, res) => {
 
 // ─── Collaborateurs ───────────────────────────────────────────────────────────
 
+// POST /api/join/check — vérifie le code + cherche l'email dans l'équipe
+app.post('/api/join/check', async (req, res) => {
+  const { code, email } = req.body
+  if (!code || !email) return res.status(400).json({ error: 'Champs manquants' })
+  try {
+    const { rows: teams } = await pool.query(
+      'SELECT * FROM teams WHERE code_acces = $1',
+      [code.trim().toUpperCase()]
+    )
+    const team = teams[0]
+    if (!team) return res.status(404).json({ error: 'Code invalide' })
+
+    const { rows: collabs } = await pool.query(
+      'SELECT * FROM collaborators WHERE team_id = $1 AND email = $2',
+      [team.id, email.toLowerCase().trim()]
+    )
+
+    if (collabs.length > 0) {
+      return res.json({ found: true, collaborator: collabs[0], team: team.nom })
+    }
+    res.json({ found: false, team: team.nom, team_id: team.id, org_id: team.org_id })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // POST /api/join — rejoindre une équipe via code d'accès
 app.post('/api/join', async (req, res) => {
   const { code, nom, email, role } = req.body
