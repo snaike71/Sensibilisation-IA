@@ -745,6 +745,133 @@ function TeamCard({ teamId, name, desc, roles: initialRoles, count, code, token,
   )
 }
 
+// ─── Org Profile View ─────────────────────────────────────────────────────────
+
+const SECTEURS = ['Technologie', 'Finance', 'Santé', 'Éducation', 'Industrie', 'Commerce & Retail', 'Services', 'Média & Communication', 'Autre']
+const TAILLES = ['1 – 10', '11 – 50', '51 – 200', '201 – 1 000', '1 000+']
+const OUTILS_LIST = ['ChatGPT', 'Microsoft Copilot', 'Gemini', 'Claude', 'Midjourney', 'Stable Diffusion', 'Perplexity', 'Notion AI', 'GitHub Copilot', 'Autre']
+const MATURITES = ['Débutant', 'En cours', 'Avancé', 'Expert']
+
+function OrgProfileView({ token }) {
+  const [org, setOrg] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch(apiUrl('/api/organisations'), { headers: { ...API_HEADERS, Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) { setOrg(data); setDraft(data) } })
+      .catch(() => {})
+  }, [token])
+
+  const toggleOutil = (o) => setDraft(d => ({
+    ...d,
+    outils_ia: Array.isArray(d.outils_ia)
+      ? d.outils_ia.includes(o) ? d.outils_ia.filter(x => x !== o) : [...d.outils_ia, o]
+      : [o]
+  }))
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(apiUrl('/api/organisations'), {
+        method: 'PUT',
+        headers: { ...API_HEADERS, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ secteur: draft.secteur, taille: draft.taille, outils_ia: draft.outils_ia, maturite: draft.maturite }),
+      })
+      if (res.ok) { const data = await res.json(); setOrg(data); setDraft(data) }
+      setEditing(false)
+    } catch { } finally { setSaving(false) }
+  }
+
+  if (!org) return <div style={{ fontFamily: SANS, color: C.inkMute, padding: 40 }}>Chargement…</div>
+
+  const chipStyle = (active) => ({
+    padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${active ? C.signal : C.border}`,
+    background: active ? C.signalSoft : C.white, cursor: editing ? "pointer" : "default",
+    fontFamily: SANS, fontSize: 13, color: active ? C.signal : C.ink, fontWeight: active ? 700 : 400, transition: "all 0.15s"
+  })
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 720 }}>
+      <PageHead
+        title="Profil organisation"
+        sub={org.nom}
+        actions={editing
+          ? <><div onClick={() => { setEditing(false); setDraft(org) }}><Btn kind="ghost">Annuler</Btn></div><div onClick={handleSave}><Btn kind="primary" icon="check">{saving ? 'Enregistrement…' : 'Enregistrer'}</Btn></div></>
+          : <div onClick={() => setEditing(true)}><Btn kind="ghost" icon="pencil">Modifier</Btn></div>
+        }
+      />
+
+      {/* Infos fixes */}
+      <Card pad={22}>
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.inkMute, marginBottom: 16, letterSpacing: "0.04em" }}>INFORMATIONS GÉNÉRALES</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {[{ label: "Nom", value: org.nom }, { label: "Email admin", value: org.email_admin }, { label: "Plan", value: org.plan ?? 'Essai' }, { label: "Statut", value: org.statut_onboarding ?? '—' }].map(({ label, value }) => (
+            <div key={label} style={{ padding: "12px 16px", background: C.bg, borderRadius: 10, border: `1px solid ${C.border}` }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: C.inkMute, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: SANS, fontSize: 14, fontWeight: 600, color: C.ink }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Secteur */}
+      <Card pad={22}>
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.inkMute, marginBottom: 14, letterSpacing: "0.04em" }}>SECTEUR D'ACTIVITÉ</div>
+        {editing ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {SECTEURS.map(s => <button key={s} onClick={() => setDraft(d => ({ ...d, secteur: s }))} style={chipStyle(draft.secteur === s)}>{s}</button>)}
+          </div>
+        ) : (
+          <div style={{ fontFamily: SANS, fontSize: 15, fontWeight: 600, color: C.ink }}>{org.secteur ?? '—'}</div>
+        )}
+      </Card>
+
+      {/* Taille */}
+      <Card pad={22}>
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.inkMute, marginBottom: 14, letterSpacing: "0.04em" }}>TAILLE DE L'ORGANISATION</div>
+        {editing ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {TAILLES.map(t => <button key={t} onClick={() => setDraft(d => ({ ...d, taille: t }))} style={chipStyle(draft.taille === t)}>{t} collaborateurs</button>)}
+          </div>
+        ) : (
+          <div style={{ fontFamily: SANS, fontSize: 15, fontWeight: 600, color: C.ink }}>{org.taille ? `${org.taille} collaborateurs` : '—'}</div>
+        )}
+      </Card>
+
+      {/* Outils IA */}
+      <Card pad={22}>
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.inkMute, marginBottom: 14, letterSpacing: "0.04em" }}>OUTILS IA UTILISÉS</div>
+        {editing ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {OUTILS_LIST.map(o => <button key={o} onClick={() => toggleOutil(o)} style={chipStyle(Array.isArray(draft.outils_ia) && draft.outils_ia.includes(o))}>{o}</button>)}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {Array.isArray(org.outils_ia) && org.outils_ia.length > 0
+              ? org.outils_ia.map(o => <Chip key={o} tone="cyan">{o}</Chip>)
+              : <span style={{ fontFamily: SANS, fontSize: 14, color: C.inkMute }}>—</span>}
+          </div>
+        )}
+      </Card>
+
+      {/* Maturité */}
+      <Card pad={22}>
+        <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: C.inkMute, marginBottom: 14, letterSpacing: "0.04em" }}>MATURITÉ IA</div>
+        {editing ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {MATURITES.map(m => <button key={m} onClick={() => setDraft(d => ({ ...d, maturite: m }))} style={chipStyle(draft.maturite === m)}>{m}</button>)}
+          </div>
+        ) : (
+          <div style={{ fontFamily: SANS, fontSize: 15, fontWeight: 600, color: C.ink }}>{org.maturite ?? '—'}</div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
@@ -753,6 +880,7 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
     { tab: "usecases", label: "Cas d'usage", icon: "bulb" },
     { tab: "modules", label: "Modules", icon: "brain" },
     { tab: "teams", label: "Équipes", icon: "users" },
+    { tab: "org-profile", label: "Profil organisation", icon: "shield" },
   ]
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : "AD"
   const userName = user?.name || "Administrateur"
@@ -1604,6 +1732,9 @@ export default function AdminHub({ onBack, onGenerateModule }) {
             onTeamCreated={fetchData}
             onRefresh={fetchData}
           />
+        )}
+        {activeTab === 'org-profile' && (
+          <OrgProfileView token={token} />
         )}
       </div>
     </div>

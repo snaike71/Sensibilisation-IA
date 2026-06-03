@@ -69,7 +69,7 @@ export default function LoginScreen({ onSuccess, onBack }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erreur')
       login(data.org ?? data.user, data.token)
-      onSuccess()
+      onSuccess(mode === 'register')
     } catch (err) {
       setError(err.message)
     } finally {

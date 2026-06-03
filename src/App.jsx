@@ -10,8 +10,9 @@ import Quiz from './components/apprenant/Quiz.jsx'
 import ScoreScreen from './components/apprenant/ScoreScreen.jsx'
 import AdminHub from './components/admin/AdminHub.jsx'
 import AdminScreen from './components/admin/AdminScreen.jsx'
+import AdminOnboardingScreen from './components/admin/AdminOnboardingScreen.jsx'
 
-// phases : 'role-select' | 'login' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
+// phases : 'role-select' | 'login' | 'admin-onboarding' | 'join-team' | 'apprenant-dashboard' | 'accroche' | 'quiz' | 'score' | 'admin' | 'admin-generate'
 
 export default function App() {
   const { user, token, collaborator, logout } = useApp()
@@ -57,7 +58,11 @@ export default function App() {
 
   // Login admin uniquement (déclenché par "Accéder à l'admin")
   if (phase === 'login') {
-    return <LoginScreen onSuccess={() => setPhase('admin')} onBack={() => setPhase('role-select')} />
+    return <LoginScreen onSuccess={(isNew) => setPhase(isNew ? 'admin-onboarding' : 'admin')} onBack={() => setPhase('role-select')} />
+  }
+
+  if (phase === 'admin-onboarding') {
+    return <AdminOnboardingScreen onSuccess={() => setPhase('admin')} />
   }
 
   if (phase === 'join-team') {

@@ -84,6 +84,20 @@ app.post('/api/auth/login', async (req, res) => {
   }
 })
 
+// GET /api/organisations — récupérer le profil de l'organisation connectée
+app.get('/api/organisations', auth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, nom, email_admin, secteur, taille, outils_ia, maturite, statut_onboarding, plan FROM organisations WHERE id = $1',
+      [req.org.id]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Organisation non trouvée' })
+    res.json(rows[0])
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // PUT /api/organisations — mettre à jour le profil de l'organisation (onboarding)
 app.put('/api/organisations', auth, async (req, res) => {
   const { secteur, taille, outils_ia, maturite, statut_onboarding } = req.body
