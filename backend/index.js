@@ -228,11 +228,12 @@ app.delete('/api/modules/:id', auth, async (req, res) => {
 // GET /api/modules/team/:team_id — modules assignés à une équipe (public, pour les collaborateurs)
 app.get('/api/modules/team/:team_id', async (req, res) => {
   const { team_id } = req.params
+  const debug = req.query.debug === '1'
   try {
     // Récupérer le nom de l'équipe à partir de son ID
     const teamRes = await pool.query('SELECT nom FROM teams WHERE id = $1 LIMIT 1', [team_id])
     const teamNom = teamRes.rows[0]?.nom
-    if (!teamNom) return res.json([])
+    if (!teamNom) return res.json(debug ? { error: 'team_not_found', team_id } : [])
 
     const { rows } = await pool.query(
       `SELECT id, titre, code, description, categorie, niveau, duree_min, contenu, personnalise
@@ -241,6 +242,7 @@ app.get('/api/modules/team/:team_id', async (req, res) => {
        ORDER BY created_at DESC`,
       [teamNom, team_id]
     )
+    if (debug) return res.json({ teamNom, team_id, count: rows.length, modules: rows.map(r => ({ id: r.id, titre: r.titre })) })
     res.json(rows)
   } catch (e) {
     res.status(500).json({ error: e.message })
