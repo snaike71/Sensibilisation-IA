@@ -982,9 +982,22 @@ function AdminSidebar({ activeTab, setActiveTab, onBack, user, avgMaturity }) {
 
 // ─── Dashboard View ───────────────────────────────────────────────────────────
 
-function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig }) {
+function DashboardView({ setActiveTab, teams, modules, usecases, sessions, companyConfig }) {
   const totalCollaborators = teams.reduce((acc, t) => acc + (t.nb_collaborateurs || 0), 0)
-  const modulesFollowedPct = totalCollaborators > 0 ? Math.round((sessions.length / totalCollaborators) * 100) : 0
+
+  // Dénominateur : pour chaque équipe, nb_collaborateurs × nb_modules assignés à cette équipe
+  const totalPossible = teams.reduce((acc, team) => {
+    const teamModules = (modules || []).filter(m =>
+      m.equipes_ciblees === team.nom || m.equipes_ciblees === team.id
+    )
+    return acc + (team.nb_collaborateurs || 0) * teamModules.length
+  }, 0)
+
+  // Numérateur : paires distinctes (collaborateur, module) complétées
+  const completedPairs = new Set(
+    sessions.filter(s => s.collaborator_id && s.module_id).map(s => `${s.collaborator_id}:${s.module_id}`)
+  )
+  const modulesFollowedPct = totalPossible > 0 ? Math.min(100, Math.round((completedPairs.size / totalPossible) * 100)) : 0
 
   const avgScore = sessions.length > 0
     ? Math.round((sessions.reduce((acc, s) => acc + (s.score / s.total_questions), 0) / sessions.length) * 100)
@@ -1021,7 +1034,7 @@ function DashboardView({ setActiveTab, teams, usecases, sessions, companyConfig 
       {/* KPIs Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Collaborateurs" value={String(totalCollaborators)} icon="users" />
-        <KpiCard label="Modules suivis" value={String(modulesFollowedPct)} suffix="%" icon="brain" />
+        <KpiCard label="Modules complétés" value={String(modulesFollowedPct)} suffix="%" icon="brain" />
         <KpiCard label="Cas d'usage" value={String(usecases.length)} icon="bulb" />
         <KpiCard label="Score moyen" value={String(avgScore)} suffix="%" icon="target" />
       </div>
@@ -1854,6 +1867,7 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           <DashboardView
             setActiveTab={setActiveTab}
             teams={teams}
+            modules={modules}
             usecases={usecases}
             sessions={sessions}
             companyConfig={companyConfig}

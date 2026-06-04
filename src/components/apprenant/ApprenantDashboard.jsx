@@ -135,7 +135,7 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
 
   // Niveau calculé depuis l'XP (pas depuis la BD qui n'est jamais mise à jour)
   const XP_LEVELS = [0, 100, 300, 600, 1000]
-  const niveau = XP_LEVELS.findLastIndex(threshold => totalXP >= threshold) + 1
+  const niveau = XP_LEVELS.reduce((lvl, threshold, i) => totalXP >= threshold ? i + 1 : lvl, 1)
   const xpLower = XP_LEVELS[niveau - 1] ?? 0
   const xpUpper = XP_LEVELS[niveau] ?? XP_LEVELS[XP_LEVELS.length - 1]
   const xpProgress = xpUpper > xpLower ? Math.min(1, (totalXP - xpLower) / (xpUpper - xpLower)) : 1
