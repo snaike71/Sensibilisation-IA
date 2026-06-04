@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext.jsx'
 import { useOllama } from '../../hooks/useOllama.js'
 import { apiUrl, API_HEADERS } from '../../utils/api.js'
 import { extractPdfText } from '../../utils/pdfExtract.js'
-import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, RiskBadge, Mark } from '../lhctrl-kit.jsx'
+import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, RiskBadge, Mark, StudioBg, markBgStyle } from '../lhctrl-kit.jsx'
 
 // ─── Header UI Atom ───────────────────────────────────────────────────────────
 
@@ -1853,14 +1853,21 @@ export default function AdminHub({ onBack, onGenerateModule }) {
 
   return (
     <div style={{
+      position: "relative",
       width: "100%",
       minHeight: "100vh",
       background: C.bg,
       fontFamily: SANS,
       color: C.ink,
-      display: "flex"
     }}>
-      <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onBack={onBack} user={user} avgMaturity={avgMaturity} />
+      {/* Background décoratif — hors du flux flex */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+        <StudioBg bgColor={C.bg} markColor={C.signal} markOpacity={0.04} logoSize={200} spacing={150} />
+      </div>
+
+      {/* Layout principal — au-dessus du fond */}
+      <div style={{ position: "relative", zIndex: 1, display: "flex", minHeight: "100vh" }}>
+        <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} onBack={onBack} user={user} avgMaturity={avgMaturity} />
 
       <div style={{ flex: 1, padding: "30px 36px", overflowY: "auto", boxSizing: "border-box" }} className="h-screen">
         {activeTab === 'dashboard' && (
@@ -1905,6 +1912,7 @@ export default function AdminHub({ onBack, onGenerateModule }) {
           <OrgProfileView token={token} />
         )}
       </div>
+      </div>{/* fin flex wrapper zIndex:1 */}
     </div>
   )
 }

@@ -275,6 +275,40 @@ export function WaveBg() {
   );
 }
 
+/* ---------- Mark pattern background (logo répété en fond) ---------- */
+export function markBgStyle({ bgColor = "#f1f5f9", markColor = "#6366f1", markOpacity = 0.055, logoSize = 220, spacing = 160 } = {}) {
+  // logoSize : largeur visuelle du mark en px
+  // spacing  : espace en px autour de chaque logo (gap entre tuiles)
+  const AR = 256 / 324;
+  const logoH   = Math.round(logoSize * AR);
+  const tileW   = logoSize + spacing;
+  const tileH   = logoH   + Math.round(spacing * AR);
+  // Extension du viewBox pour créer le whitespace
+  const vbPadX  = 324 * (spacing / 2) / logoSize;
+  const vbPadY  = 256 * (spacing / 2) / logoSize;
+  const vb = `${49 - vbPadX} ${113 - vbPadY} ${324 + vbPadX * 2} ${256 + vbPadY * 2}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${tileW}" height="${tileH}" fill="${markColor}" opacity="${markOpacity}">${MARK_PATHS.map(d => `<path d="${d}"/>`).join('')}</svg>`;
+  const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  return {
+    backgroundColor: bgColor,
+    backgroundImage: `radial-gradient(circle at 50% 30%, rgba(99,102,241,0.10) 0%, transparent 60%), ${url}`,
+    backgroundSize: `auto, ${tileW}px ${tileH}px`,
+    backgroundRepeat: "no-repeat, repeat",
+  };
+}
+
+/* ---------- Clean Studio Gradient : Silver Light + Mark ---------- */
+export function StudioBg(props) {
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      width: "100%", height: "100%",
+      pointerEvents: "none",
+      ...markBgStyle(props),
+    }} />
+  );
+}
+
 Object.assign(window, {
   C, MONO, SANS, Mark, Logo, ImgPH, Avatar, Lines, Btn, Chip, RiskBadge,
   Card, Anno, ReuseTag, Progress, Kicker, H, Icon, HATCH,
