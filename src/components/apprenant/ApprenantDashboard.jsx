@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { apiUrl, API_HEADERS } from '../../utils/api.js'
 import { downloadAttestation } from '../../utils/attestation.js'
-import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, Avatar, Kicker, H, Progress, Mark } from '../lhctrl-kit.jsx'
+import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, Avatar, Kicker, H, Progress, Mark, StudioBg } from '../lhctrl-kit.jsx'
 
 
 function getInitials(nom) {
@@ -191,7 +191,13 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
   const serie = sessions.length
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: C.bg, color: C.ink, fontFamily: SANS }}>
+    <div style={{ position: "relative", minHeight: "100vh", backgroundColor: C.bg, color: C.ink, fontFamily: SANS }}>
+      {/* Background décoratif */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+        <StudioBg bgColor={C.bg} markColor={C.signal} markOpacity={0.04} logoSize={200} spacing={150} />
+      </div>
+      {/* Contenu au-dessus du fond */}
+      <div style={{ position: "relative", zIndex: 1 }}>
       {/* Header */}
       <div style={{ height: 60, borderBottom: `1px solid ${C.border}`, background: C.white,
         display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
@@ -407,6 +413,7 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
           </div>
         )}
       </main>
+      </div>{/* fin contenu zIndex:1 */}
     </div>
   )
 }
