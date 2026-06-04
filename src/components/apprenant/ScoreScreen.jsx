@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
+import { downloadAttestation } from '../../utils/attestation.js'
 import { C, MONO, SANS, Logo, Icon, Btn, Card, Kicker, H } from '../lhctrl-kit.jsx'
 
 const profils = [
@@ -60,9 +61,9 @@ function Ring({ value = 0.8, size = 180, color = C.signal }) {
   )
 }
 
-export default function ScoreScreen({ score, total, onRestart, onGoToDashboard }) {
+export default function ScoreScreen({ score, total, module, onRestart, onGoToDashboard }) {
   const profil = getProfil(score, total)
-  const { saveResult, collaborator } = useApp()
+  const { saveResult, collaborator, companyConfig } = useApp()
   const pct = total > 0 ? Math.round((score / total) * 100) : 0
   const xpGagne = Math.round(pct * 1.5) // ex: 80% → +120 XP
 
@@ -155,6 +156,23 @@ export default function ScoreScreen({ score, total, onRestart, onGoToDashboard }
         <div style={{ color: C.inkMute, fontSize: 12, fontFamily: MONO, marginBottom: 32 }}>
           {score} bonne{score > 1 ? 's' : ''} réponse{score > 1 ? 's' : ''} sur {total} questions
         </div>
+
+        {/* Attestation si >= 70% */}
+        {pct >= 70 && (
+          <div
+            onClick={() => downloadAttestation({
+              collaboratorNom: collaborator?.nom ?? 'Apprenant',
+              moduleTitre: module?.titre ?? 'Module de sensibilisation IA',
+              score,
+              total,
+              pct,
+              orgNom: companyConfig?.companyName ?? collaborator?.teamName ?? '',
+            })}
+            style={{ width: "100%", marginBottom: 16 }}
+          >
+            <Btn kind="soft" size="lg" icon="doc" full>Télécharger l'attestation</Btn>
+          </div>
+        )}
 
         {/* 2 Boutons de navigation bas de page */}
         <div style={{ display: "flex", gap: 12, width: "100%" }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../../context/AppContext.jsx'
 import { apiUrl, API_HEADERS } from '../../utils/api.js'
+import { downloadAttestation } from '../../utils/attestation.js'
 import { C, MONO, SANS, Logo, Icon, Btn, Card, Chip, Avatar, Kicker, H, Progress, Mark } from '../lhctrl-kit.jsx'
 
 
@@ -24,45 +25,61 @@ function StatCard({ icon, value, label, tone }) {
   )
 }
 
-function ModuleRow({ titre, categorie, duree_min, statut, idx, onStart }) {
+function ModuleRow({ titre, categorie, duree_min, statut, idx, onStart, session, collaboratorNom, orgNom }) {
   const done = statut === 'done', current = statut === 'current'
+  const sessionPct = session && session.total_questions > 0
+    ? Math.round((session.score / session.total_questions) * 100)
+    : 0
+  const canAttestation = done && session && sessionPct >= 70
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 18px",
-      background: C.white, border: `1px solid ${current ? C.signal : C.border}`, borderRadius: 13,
-      boxShadow: current ? `0 0 0 3px ${C.signalSoft}` : "none" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-        background: done ? C.okBg : current ? C.signal : C.bg, border: `1px solid ${done ? C.okBg : current ? C.signal : C.border}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontFamily: MONO, fontWeight: 700, fontSize: 13, color: done ? C.ok : current ? C.white : C.inkMute }}>
-        {done ? <Icon name="check" size={16} color={C.ok} /> : idx}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>{titre}</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-          <Chip tone="cyan">{categorie}</Chip>
-          <Chip icon="play">{duree_min} min</Chip>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, background: C.white, border: `1px solid ${current ? C.signal : C.border}`, borderRadius: 13, boxShadow: current ? `0 0 0 3px ${C.signalSoft}` : "none", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 18px" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+          background: done ? C.okBg : current ? C.signal : C.bg, border: `1px solid ${done ? C.okBg : current ? C.signal : C.border}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: MONO, fontWeight: 700, fontSize: 13, color: done ? C.ok : current ? C.white : C.inkMute }}>
+          {done ? <Icon name="check" size={16} color={C.ok} /> : idx}
         </div>
-      </div>
-      {done ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Chip tone="default" icon="check">Terminé</Chip>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>{titre}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <Chip tone="cyan">{categorie}</Chip>
+            <Chip icon="play">{duree_min} min</Chip>
+            {done && session && <Chip tone={sessionPct >= 70 ? "default" : "ghost"}>{sessionPct}%</Chip>}
+          </div>
+        </div>
+        {done ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Chip tone="default" icon="check">Terminé</Chip>
+            <button onClick={onStart} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+              <Btn kind="ghost" size="sm" icon="play">Rejouer</Btn>
+            </button>
+          </div>
+        ) : current ? (
           <button onClick={onStart} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-            <Btn kind="ghost" size="sm" icon="play">Rejouer</Btn>
+            <Btn kind="primary" icon="play">Démarrer</Btn>
+          </button>
+        ) : (
+          <Btn kind="ghost" state="disabled">Démarrer</Btn>
+        )}
+      </div>
+      {canAttestation && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: "10px 18px", background: C.okBg }}>
+          <button
+            onClick={() => downloadAttestation({ collaboratorNom: collaboratorNom ?? 'Apprenant', moduleTitre: titre, score: session.score, total: session.total_questions, pct: sessionPct, orgNom })}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            <Btn kind="ghost" size="sm" icon="doc">Télécharger l'attestation</Btn>
           </button>
         </div>
-      ) : current ? (
-        <button onClick={onStart} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-          <Btn kind="primary" icon="play">Démarrer</Btn>
-        </button>
-      ) : (
-        <Btn kind="ghost" state="disabled">Démarrer</Btn>
       )}
     </div>
   )
 }
 
 export default function ApprenantDashboard({ onStartModule, onLogout }) {
-  const { collaborator, token, setCollaborator } = useApp()
+  const { collaborator, token, setCollaborator, companyConfig } = useApp()
   const [sessions, setSessions] = useState([])
   const [assignedModules, setAssignedModules] = useState([])
   const [loading, setLoading] = useState(true)
@@ -335,14 +352,22 @@ export default function ApprenantDashboard({ onStartModule, onLogout }) {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {finalModules.map((mod, i) => (
-                <ModuleRow
-                  key={mod.id}
-                  idx={i + 1}
-                  {...mod}
-                  onStart={() => onStartModule(mod)}
-                />
-              ))}
+              {finalModules.map((mod, i) => {
+                const modSession = sessions
+                  .filter(s => s.module_id === mod.id)
+                  .sort((a, b) => (b.score / Math.max(b.total_questions, 1)) - (a.score / Math.max(a.total_questions, 1)))[0]
+                return (
+                  <ModuleRow
+                    key={mod.id}
+                    idx={i + 1}
+                    {...mod}
+                    onStart={() => onStartModule(mod)}
+                    session={modSession}
+                    collaboratorNom={collaborator?.nom}
+                    orgNom={companyConfig?.companyName}
+                  />
+                )
+              })}
             </div>
           )}
         </div>

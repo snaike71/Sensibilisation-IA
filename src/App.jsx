@@ -106,5 +106,5 @@ export default function App() {
     return <Quiz module={activeModule} onFinish={handleQuizFinish} />
   }
 
-  return <ScoreScreen score={score} total={total} onRestart={handleRestart} onGoToDashboard={() => setPhase('apprenant-dashboard')} />
+  return <ScoreScreen score={score} total={total} module={activeModule} onRestart={handleRestart} onGoToDashboard={() => setPhase('apprenant-dashboard')} />
 }
